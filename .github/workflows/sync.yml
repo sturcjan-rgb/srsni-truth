@@ -1,0 +1,39 @@
+name: srsni-data sync
+
+on:
+  workflow_dispatch:
+  schedule:
+    # každé 3 hodiny - GitHub Actions runner má normální přístup k internetu,
+    # na rozdíl od vývojové sandboxy, kde je nbl.basketball/fibalivestats
+    # blokované organizační síťovou politikou.
+    - cron: "20 */3 * * *"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Nainstalovat uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Nainstalovat závislosti
+        run: uv sync
+
+      - name: Synchronizovat sezónu 2025/26
+        run: uv run python3 sync.py "2025/26"
+
+      - name: Synchronizovat sezónu 2026/27
+        run: uv run python3 sync.py "2026/27"
+
+      - name: Commitnout srsni.db, pokud se změnila
+        run: |
+          git config user.name "srsni-bot"
+          git config user.email "bot@srsni.local"
+          git add -f srsni.db
+          git diff --cached --quiet || git commit -m "chore: sync srsni.db (2025/26, 2026/27)"
+          git push
