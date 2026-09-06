@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Přehled{% endblock %}
+{% block content %}
+
+<h1>Sršni Photomate Písek</h1>
+<p class="prose" style="color:var(--text-muted); margin-top:-0.5rem;">
+  Sezóna {{ current_season.label }} · bilance {{ record.wins }}&ndash;{{ record.losses }}
+</p>
+
+<div class="section">
+  <div class="tile-row">
+    <div class="stat-tile">
+      <div class="value">{{ record.wins }}&ndash;{{ record.losses }}</div>
+      <div class="label">Bilance</div>
+    </div>
+    <div class="stat-tile">
+      <div class="value">{{ "%.1f"|format(record.points_for_per_game) if record.points_for_per_game else "–" }}</div>
+      <div class="label">Body / zápas</div>
+    </div>
+    <div class="stat-tile">
+      <div class="value">{{ "%.1f"|format(record.points_against_per_game) if record.points_against_per_game else "–" }}</div>
+      <div class="label">Obdržené / zápas</div>
+    </div>
+    <div class="stat-tile">
+      <div class="value">{{ record.points_for - record.points_against if record.games_played else "–" }}</div>
+      <div class="label">Skóre celkem</div>
+    </div>
+  </div>
+</div>
+
+<div class="grid-2">
+  <div class="section">
+    <div class="section-title"><h2>Příští zápas</h2></div>
+    {% if next_match %}
+    <a class="game-row" style="grid-template-columns: 90px 1fr auto;" href="{{ root }}zapasy/{{ next_match.nbl_id }}.html">
+      <span class="date">{{ next_match.date_fmt }}</span>
+      <span class="opponent">{{ next_match.opponent }}</span>
+      <span class="badge upcoming">brzy</span>
+    </a>
+    {% else %}
+    <p class="prose">Žádný naplánovaný zápas v databázi.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <div class="section-title"><h2>Poslední výsledek</h2></div>
+    {% if last_result %}
+    <a class="game-row" href="{{ root }}zapasy/{{ last_result.nbl_id }}.html">
+      <span class="date">{{ last_result.date_fmt }}</span>
+      <span class="opponent">{{ last_result.opponent }}</span>
+      <span class="score">{{ last_result.our_score }}:{{ last_result.opp_score }}</span>
+      <span class="badge {{ 'win' if last_result.won else 'loss' }}">{{ 'V' if last_result.won else 'P' }}</span>
+    </a>
+    {% else %}
+    <p class="prose">Zatím žádný odehraný zápas.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">
+    <h2>Nejlepší střelci sezóny</h2>
+    <a class="more" href="{{ root }}sezona/{{ current_season.slug }}.html">celá sezóna →</a>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th class="text">Hráč</th><th>Zápasy</th><th>Body</th><th>Body/zápas</th></tr></thead>
+      <tbody>
+        {% for p in top_scorers %}
+        <tr>
+          <td class="text"><a href="{{ root }}hraci/{{ p.player_id }}.html">{{ p.name }}</a></td>
+          <td>{{ p.games }}</td>
+          <td>{{ p.points }}</td>
+          <td>{{ "%.1f"|format(p.points_per_game) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title"><h2>Sezóny v databázi</h2></div>
+  <div class="tile-row">
+    {% for s in seasons %}
+    <a class="stat-tile" href="{{ root }}sezona/{{ s.slug }}.html">
+      <div class="value" style="font-size:1.5rem;">{{ s.label }}</div>
+      <div class="label">otevřít sezónu</div>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+{% endblock %}

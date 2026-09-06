@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Hráči{% endblock %}
+{% block content %}
+
+<h1>Hráči</h1>
+<p class="prose" style="color:var(--text-muted); margin-top:-0.5rem;">Všichni hráči, kteří nastoupili za Sršni Photomate Písek v datech, které máme.</p>
+
+<div class="table-wrap">
+  <table>
+    <thead><tr><th class="text">Hráč</th><th>Zápasy</th><th>Body celkem</th><th>Body/zápas</th></tr></thead>
+    <tbody>
+      {% for p in players %}
+      <tr>
+        <td class="text"><a href="{{ root }}hraci/{{ p.player_id }}.html">{{ p.name }}</a></td>
+        <td>{{ p.games }}</td>
+        <td>{{ p.points }}</td>
+        <td>{{ "%.1f"|format(p.points_per_game) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

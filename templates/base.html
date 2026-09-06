@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Sršni Data{% endblock %} · Sršni Photomate Písek</title>
+  <link rel="stylesheet" href="{{ root }}static/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a class="logo" href="{{ root }}index.html">SRŠNI <span>DATA</span></a>
+      <nav class="main-nav">
+        <a href="{{ root }}index.html">Přehled</a>
+        {% if current_season %}
+        <a href="{{ root }}sezona/{{ current_season.slug }}.html">Sezóna {{ current_season.label }}</a>
+        {% endif %}
+        <a href="{{ root }}hraci/index.html">Hráči</a>
+      </nav>
+    </div>
+  </header>
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="site-footer">
+    <div class="container">
+      Data ze zápasů Sršňů Photomate Písek · generováno automaticky ze srsni.db
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,345 @@
+/* Design podle Sršni TV (tv.srsni.com): černá + zlatá, Barlow Condensed. */
+
+@import url("https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&display=swap");
+
+:root {
+  --bg: #0a0a0b;
+  --surface: #17171a;
+  --surface-2: #1f1f23;
+  --border: rgba(255, 255, 255, 0.09);
+  --gold: #ffd31a;
+  --gold-dim: #7a6600;
+  --text: #f5f5f2;
+  --text-muted: #9a9a9f;
+  --win: #3ecf6e;
+  --loss: #ef5757;
+  --radius: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Barlow Condensed", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 17px;
+  line-height: 1.45;
+}
+
+p, .prose {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1, h2, h3, h4 {
+  font-family: "Barlow Condensed", sans-serif;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  margin: 0 0 0.4em;
+}
+
+h1 { font-size: clamp(2rem, 5vw, 3.2rem); }
+h2 { font-size: clamp(1.4rem, 3vw, 2rem); color: var(--gold); }
+h3 { font-size: 1.25rem; }
+
+.container {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+/* --- Hlavička --- */
+
+header.site-header {
+  border-bottom: 1px solid var(--border);
+  background: #000;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.site-header .container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+}
+
+.logo {
+  font-weight: 900;
+  font-size: 1.7rem;
+  letter-spacing: 0.03em;
+  color: var(--gold);
+  text-transform: uppercase;
+}
+
+.logo span {
+  color: var(--text);
+}
+
+nav.main-nav {
+  display: flex;
+  gap: 1.5rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.95rem;
+  letter-spacing: 0.03em;
+}
+
+nav.main-nav a {
+  color: var(--text-muted);
+  transition: color 0.15s;
+}
+
+nav.main-nav a:hover,
+nav.main-nav a.active {
+  color: var(--gold);
+}
+
+/* --- Obsah --- */
+
+main {
+  padding: 2rem 0 4rem;
+}
+
+.section {
+  margin-bottom: 2.75rem;
+}
+
+.section-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  border-bottom: 2px solid var(--gold);
+  padding-bottom: 0.35rem;
+  margin-bottom: 1rem;
+}
+
+.section-title h2 {
+  margin: 0;
+}
+
+.section-title .more {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+/* --- Karty a dlaždice --- */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.25rem;
+}
+
+.tile-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.9rem;
+}
+
+.stat-tile {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1rem 0.85rem;
+  text-align: center;
+}
+
+.stat-tile .value {
+  font-size: 2.2rem;
+  font-weight: 900;
+  color: var(--gold);
+  line-height: 1;
+}
+
+.stat-tile .label {
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+/* --- Tabulky --- */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+th, td {
+  padding: 0.5rem 0.65rem;
+  text-align: right;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.95rem;
+}
+
+th {
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  background: var(--surface-2);
+}
+
+td:first-child, th:first-child,
+td.text, th.text {
+  text-align: left;
+}
+
+tbody tr:hover {
+  background: var(--surface-2);
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+td a, th a {
+  color: var(--gold);
+  font-weight: 700;
+}
+
+/* --- Zápasy / výsledky --- */
+
+.game-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.game-row {
+  display: grid;
+  grid-template-columns: 90px 1fr auto 44px;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.9rem;
+}
+
+.game-row:hover {
+  border-color: var(--gold-dim);
+}
+
+.game-row .date {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.game-row .opponent {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.game-row .score {
+  font-weight: 900;
+  font-size: 1.15rem;
+  color: var(--gold);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  font-weight: 900;
+  font-size: 0.85rem;
+}
+
+.badge.win { background: rgba(62, 207, 110, 0.18); color: var(--win); }
+.badge.loss { background: rgba(239, 87, 87, 0.18); color: var(--loss); }
+.badge.upcoming { background: rgba(255, 211, 26, 0.15); color: var(--gold); font-size: 0.7rem; }
+
+/* --- Kombinace / dvojice --- */
+
+.combo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.combo-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.55rem 0.9rem;
+}
+
+.combo-row .names {
+  font-weight: 700;
+}
+
+.combo-row .points {
+  color: var(--gold);
+  font-weight: 900;
+  font-size: 1.1rem;
+  white-space: nowrap;
+}
+
+.combo-list.rank .combo-row {
+  position: relative;
+  padding-left: 2.4rem;
+}
+
+.combo-list.rank .combo-row .rank-num {
+  position: absolute;
+  left: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 900;
+}
+
+/* --- Rozvržení do sloupců --- */
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+@media (max-width: 700px) {
+  .grid-2 { grid-template-columns: 1fr; }
+  .game-row { grid-template-columns: 70px 1fr auto; }
+  .game-row .badge { display: none; }
+}
+
+footer.site-footer {
+  border-top: 1px solid var(--border);
+  padding: 1.5rem 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-family: system-ui, sans-serif;
+}
