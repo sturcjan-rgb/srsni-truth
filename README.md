@@ -109,6 +109,33 @@ Než se dá cokoliv smysluplného vyčíst, je potřeba databázi aspoň jednou
 naplnit - buď ručně přes `uv run python3 sync.py`, nebo přímo z Claude
 Code zavoláním nástroje `sync_schedule`.
 
+## Webový portál
+
+`build_site.py` vygeneruje ze `srsni.db` statický webový portál
+(přehled, detail sezóny, detail zápasu, profil hráče - včetně
+"hlubokých" statistik jako nejlepší dvojice/trojice/pětky na hřišti
+a nejčastější asistenční spojení, viz `lineups.py`/`aggregate.py`).
+
+```bash
+uv run python3 build_site.py
+# výstup je v dist/ - dá se otevřít lokálně, nebo nasadit kamkoliv
+uv run python3 -m http.server --directory dist 8000
+```
+
+### Nasazení na GitHub Pages
+
+Workflow `.github/workflows/pages.yml` portál automaticky přegeneruje
+a nasadí po každém úspěšném `sync.yml` (nová data) i po změně kódu
+portálu. **Vyžaduje to ale jedno jednorázové ruční nastavení**, které
+nejde udělat přes API/nástroje:
+
+1. V repozitáři jdi do **Settings → Pages**.
+2. U "Source" vyber **GitHub Actions** (místo výchozí volby "Deploy from a branch").
+3. Ulož. Od dalšího běhu `pages.yml` se portál nasadí na
+   `https://<uživatel>.github.io/srsni-truth/`.
+
+Design (barvy, font Barlow Condensed) vychází z [tv.srsni.com](https://tv.srsni.com/).
+
 ## Poznámka k balíčku `mcp`
 
 Balíček `mcp` na PyPI má aktuálně živou verzi 2.x, která přejmenovala
@@ -123,9 +150,14 @@ Balíček `mcp` na PyPI má aktuálně živou verzi 2.x, která přejmenovala
 discovery.py     - najde zápasy Sršňů v rozpisu (nbl.basketball)
 resolve.py       - dohledá fiba_id ze stránky konkrétního zápasu
 db.py            - SQLite databáze (matches, snapshots)
-stats.py         - čisté funkce nad JSONem z FIBA LiveStats
-test_stats.py    - testy pro stats.py (bez sítě)
+stats.py         - čisté funkce nad JSONem z FIBA LiveStats (jeden zápas)
+lineups.py       - kombinace hráčů na hřišti + asistenční dvojice (play-by-play)
+aggregate.py     - sezónní/kariérní statistiky napříč zápasy
+test_*.py        - testy (bez sítě)
 sync.py          - orchestrátor: discovery -> resolve -> stažení dat
 live.py          - živé sledování probíhajícího zápasu
 mcp_server.py    - MCP server nad databází pro Claude Code
+build_site.py    - generátor statického webového portálu
+templates/       - HTML šablony portálu (Jinja2)
+static/          - styl portálu (style.css)
 ```
