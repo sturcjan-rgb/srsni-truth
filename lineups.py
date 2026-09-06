@@ -56,7 +56,16 @@ def player_names(raw_json: dict, tno: str) -> dict[str, str]:
 
 @dataclass
 class LineupStats:
-    """Výsledek rozboru pbp pro jeden tým v jednom zápase/snapshotu."""
+    """
+    Výsledek rozboru pbp pro jeden tým v jednom zápase/snapshotu.
+
+    Kombinace i asistenční dvojice jsou klíčované JMÉNY hráčů, ne jejich
+    "pno"/player_id z JSONu - to číslo je totiž stabilní jen v rámci
+    jednoho zápasu (FIBA LiveStats ho každému zápasu přiděluje znovu),
+    takže při součtu přes víc zápasů by stejné číslo klidně mohlo
+    patřit dvěma různým lidem. Jméno je jediná spolehlivá spojnice mezi
+    zápasy, kterou máme.
+    """
 
     tno: str
     combo_points: dict[tuple[str, ...], int] = field(default_factory=dict)
@@ -127,11 +136,18 @@ def analyze_pbp(raw_json: dict, team_name_substring: str = "sršni") -> LineupSt
             assist_counts[pair] += 1
             assist_points[pair] += points
 
+    # "pno" je stabilní jen v rámci tohohle zápasu - přeložíme na jména
+    # hráčů, ať se to dá bezpečně sečíst i s ostatními zápasy sezóny.
+    names = player_names(raw_json, tno)
+
+    def to_names(pids: tuple[str, ...]) -> tuple[str, ...]:
+        return tuple(sorted(names.get(pid, pid) for pid in pids))
+
     return LineupStats(
         tno=tno,
-        combo_points=dict(combo_points),
-        assist_counts=dict(assist_counts),
-        assist_points=dict(assist_points),
+        combo_points={to_names(combo): pts for combo, pts in combo_points.items()},
+        assist_counts={to_names(pair): count for pair, count in assist_counts.items()},
+        assist_points={to_names(pair): pts for pair, pts in assist_points.items()},
     )
 
 

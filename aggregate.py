@@ -11,6 +11,7 @@ Bez síťové závislosti - pracuje jen s tím, co je v DB.
 
 from __future__ import annotations
 
+import unicodedata
 from dataclasses import dataclass, field
 
 import db
@@ -18,6 +19,12 @@ import lineups
 import stats
 
 SRSNI_NAME_SUBSTRING = "sršni"
+
+
+def slugify(text: str) -> str:
+    """Převede jméno na URL-bezpečný slug (bez diakritiky), pro odkazy na stránky hráčů."""
+    ascii_text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
+    return "-".join(ascii_text.lower().split())
 
 
 def _num(value, default: int = 0) -> int:
@@ -107,6 +114,9 @@ def player_stats(conn, season: str | None = None) -> list[PlayerSeasonStats]:
     Sezónní (nebo kariérní, pro season=None) statistiky hráčů Sršňů,
     seřazené sestupně podle celkových bodů.
     """
+    # Klíčujeme jménem, ne "pno" z JSONu - to číslo je stabilní jen v
+    # rámci jednoho zápasu (viz poznámka u lineups.LineupStats), takže
+    # by se přes sezónu jinak sečetly statistiky různých lidí dohromady.
     totals: dict[str, PlayerSeasonStats] = {}
 
     for _match, raw in _finished_snapshots(conn, season):
@@ -114,15 +124,13 @@ def player_stats(conn, season: str | None = None) -> list[PlayerSeasonStats]:
         if tno is None:
             continue
         team = raw["tm"][tno]
-        for pid, p in team.get("pl", {}).items():
+        for p in team.get("pl", {}).values():
             minutes = p.get("sMinutes") or "00:00"
             if minutes in ("00:00", "0:00", ""):
                 continue  # hráč se zápasu nezúčastnil
 
-            entry = totals.setdefault(
-                pid,
-                PlayerSeasonStats(player_id=pid, name=f"{p.get('firstName', '')} {p.get('familyName', '')}".strip()),
-            )
+            name = f"{p.get('firstName', '')} {p.get('familyName', '')}".strip()
+            entry = totals.setdefault(name, PlayerSeasonStats(player_id=slugify(name), name=name))
             entry.games += 1
             entry.points += _num(p.get("sPoints"))
             entry.rebounds_total += _num(p.get("sReboundsTotal"))
