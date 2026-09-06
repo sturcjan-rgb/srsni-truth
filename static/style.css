@@ -1,16 +1,16 @@
-/* Design podle Sršni TV (tv.srsni.com): černá + zlatá, Barlow Condensed.
-   Velké nadpisy na Sršni TV používají font "CoFo Peshka Black" - to je
-   ale placený komerční font (Contrast Foundry) a jeho zakódovaná podoba
-   v HTML tv.srsni.com neznamená volnou licenci pro použití jinde
-   (webfontové licence bývají vázané na konkrétní doménu). Místo něj
-   používáme "Anton" (Google Fonts, volná licence) - vizuálně nejbližší
-   volně použitelný "black" display font stejného typu (těžký, úzký,
-   velká písmena). Pokud má klub pro tenhle projekt vlastní licenci na
-   CoFo Peshka, stačí font přidat do static/ a přepsat proměnnou
-   --font-display níž. */
+/* Design podle Sršni TV (tv.srsni.com): černá + zlatá, Barlow Condensed +
+   CoFo Peshka Black pro velké nadpisy (font stažený přímo ze Sršni TV -
+   stejná organizace provozuje oba weby). */
 
 @import url("https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Anton&display=swap");
+
+@font-face {
+  font-family: "CoFo Peshka Black";
+  src: url("fonts/cofo-peshka-black.woff2") format("woff2");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
 
 :root {
   --bg: #0a0a0b;
@@ -24,7 +24,7 @@
   --win: #3ecf6e;
   --loss: #ef5757;
   --radius: 10px;
-  --font-display: "Anton", "Barlow Condensed", sans-serif;
+  --font-display: "CoFo Peshka Black", "Barlow Condensed", sans-serif;
   --font-heading: "Barlow Condensed", sans-serif;
 }
 
@@ -64,7 +64,7 @@ h1, h2, h3, h4 {
 
 h1 {
   font-family: var(--font-display);
-  font-weight: 400; /* Anton má jen jeden (už dost "black") řez */
+  font-weight: 900;
   letter-spacing: 0;
   font-size: clamp(2rem, 5vw, 3.2rem);
 }
@@ -97,7 +97,7 @@ header.site-header {
 
 .logo {
   font-family: var(--font-display);
-  font-weight: 400;
+  font-weight: 900;
   font-size: 1.5rem;
   letter-spacing: 0.01em;
   color: var(--gold);
@@ -183,7 +183,7 @@ main {
 .stat-tile .value {
   font-family: var(--font-display);
   font-size: 2.1rem;
-  font-weight: 400;
+  font-weight: 900;
   color: var(--gold);
   line-height: 1;
 }
