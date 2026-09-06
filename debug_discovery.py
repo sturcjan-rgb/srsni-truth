@@ -1,7 +1,7 @@
 """
-Dočasný diagnostický skript - spouští se jen přes CI (má přístup k síti),
-aby bylo vidět skutečnou strukturu stránky nbl.basketball. Po opravě
-discovery.py/sync.py se smaže.
+Dočasný diagnostický skript (kolo 3) - ověří skutečnou URL rozpisu
+(/tym/srsni-photomate-pisek/zapasy) a stránku pro přepínání sezóny
+(/tym/srsni-photomate-pisek/sezona), které se našly v kole 2.
 """
 
 import re
@@ -14,63 +14,52 @@ from discovery import MATCH_LINK_RE, TEAM_URL, USER_AGENT
 session = requests.Session()
 session.headers["User-Agent"] = USER_AGENT
 
-response = session.get(TEAM_URL, timeout=15)
-response.raise_for_status()
-html = response.text
+
+def fetch(url):
+    r = session.get(url, timeout=15)
+    r.raise_for_status()
+    return r.text
+
+
+print("=" * 20, "SCHEDULE URL", "=" * 20)
+schedule_url = f"{TEAM_URL}/zapasy?d_od=&d_do=&k=0"
+html = fetch(schedule_url)
 soup = BeautifulSoup(html, "html.parser")
+print(f"URL: {schedule_url}")
+print(f"HTML délka: {len(html)}")
 
-print(f"HTML délka: {len(html)} znaků")
-print()
-
-print("=== Odkazy, které vypadají jako přepínač sezóny ===")
-season_like_re = re.compile(r"20\d{2}\s*/\s*\d{2}|20\d{2}-\d{2}|20\d{2}/20\d{2}")
+all_ids = {}
 for link in soup.find_all("a", href=True):
-    text = link.get_text(" ", strip=True)
-    if season_like_re.search(text):
-        print(f"href={link['href']!r} text={text!r}")
+    m = MATCH_LINK_RE.match(link["href"])
+    if m:
+        all_ids.setdefault(m.group(1), link)
 
+print(f"Celkem unikátních nbl_id: {len(all_ids)}")
 print()
-print("=== Prvních 5 odkazů na zápas + jejich okolí ===")
-count = 0
-for link in soup.find_all("a", href=True):
-    match = MATCH_LINK_RE.match(link["href"])
-    if not match:
-        continue
-    count += 1
-    if count > 5:
+print("Prvních 5 zápasů (nbl_id + text rodiče/prarodiče):")
+for i, (nbl_id, link) in enumerate(all_ids.items()):
+    if i >= 5:
         break
-    print(f"--- nbl_id={match.group(1)} ---")
-    print("link.parent.get_text:", repr(link.parent.get_text(" ", strip=True)) if link.parent else None)
-    # o úroveň výš - třeba je datum/tým mimo bezprostředního rodiče
+    parent_text = link.parent.get_text(" ", strip=True) if link.parent else None
     grandparent = link.parent.parent if link.parent else None
-    print("grandparent.get_text:", repr(grandparent.get_text(" ", strip=True)) if grandparent else None)
-    print("link.parent HTML (zkráceno na 500 znaků):")
-    print(str(link.parent)[:500] if link.parent else None)
-    print()
-
-print(f"Celkem nalezeno odkazů na zápas: {count if count <= 5 else 'víc než 5 (viz výše prvních 5)'}")
-all_ids = {MATCH_LINK_RE.match(a["href"]).group(1) for a in soup.find_all("a", href=True) if MATCH_LINK_RE.match(a["href"])}
-print(f"Celkem unikátních nbl_id na stránce: {len(all_ids)}")
+    grandparent_text = grandparent.get_text(" ", strip=True) if grandparent else None
+    print(f"--- {nbl_id} ---")
+    print("parent:", repr(parent_text))
+    print("grandparent:", repr(grandparent_text))
 
 print()
-print("=== Odkazy s textem naznačujícím rozpis/výsledky/kalendář ===")
-keyword_re = re.compile(r"rozpis|výsledk|zápas|kalend|schedule|program|sez[oó]n", re.IGNORECASE)
-seen_hrefs = set()
-for link in soup.find_all("a", href=True):
-    href = link["href"]
-    text = link.get_text(" ", strip=True)
-    if keyword_re.search(text) or keyword_re.search(href):
-        if href not in seen_hrefs:
-            seen_hrefs.add(href)
-            print(f"href={href!r} text={text!r}")
-
-print()
-print("=== Všechny unikátní vzory odkazů (první segment cesty) ===")
-path_prefixes = {}
-for link in soup.find_all("a", href=True):
-    href = link["href"]
-    if href.startswith("/"):
-        prefix = "/" + href.strip("/").split("/")[0]
-        path_prefixes[prefix] = path_prefixes.get(prefix, 0) + 1
-for prefix, cnt in sorted(path_prefixes.items(), key=lambda x: -x[1]):
-    print(f"{prefix}: {cnt}x")
+print("=" * 20, "SEZONA URL", "=" * 20)
+sezona_url = f"{TEAM_URL}/sezona"
+try:
+    html2 = fetch(sezona_url)
+    soup2 = BeautifulSoup(html2, "html.parser")
+    print(f"URL: {sezona_url}")
+    print(f"HTML délka: {len(html2)}")
+    season_like_re = re.compile(r"20\d{2}\s*/\s*\d{2}|20\d{2}-\d{2}")
+    print("Odkazy vypadající jako sezóny:")
+    for link in soup2.find_all("a", href=True):
+        text = link.get_text(" ", strip=True)
+        if season_like_re.search(text):
+            print(f"href={link['href']!r} text={text!r}")
+except requests.RequestException as e:
+    print(f"chyba: {e}")
