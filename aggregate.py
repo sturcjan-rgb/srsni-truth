@@ -236,3 +236,55 @@ def season_lineup_stats(conn, season: str | None = None) -> lineups.LineupStats:
         if result is not None:
             results.append(result)
     return lineups.merge_lineup_stats(results)
+
+
+@dataclass
+class PlayerGameLine:
+    """Jeden řádek "zápasového deníku" hráče - jeho čísla v jednom konkrétním zápase."""
+
+    nbl_id: int
+    date_utc: str | None
+    opponent: str
+    points: int
+    rebounds_total: int
+    assists: int
+
+
+def player_game_log(conn, name: str, season: str | None = None) -> list[PlayerGameLine]:
+    """Zápas po zápase výkony daného hráče (podle jména), seřazené podle data."""
+    log: list[PlayerGameLine] = []
+
+    for match, raw in _finished_snapshots(conn, season):
+        tno = _srsni_tno(raw)
+        opp_tno = _opponent_tno(raw, tno) if tno else None
+        if tno is None or opp_tno is None:
+            continue
+
+        for p in raw["tm"][tno].get("pl", {}).values():
+            player_name = f"{p.get('firstName', '')} {p.get('familyName', '')}".strip()
+            if player_name != name:
+                continue
+            minutes = p.get("sMinutes") or "00:00"
+            if minutes in ("00:00", "0:00", ""):
+                continue
+            log.append(
+                PlayerGameLine(
+                    nbl_id=match.nbl_id,
+                    date_utc=match.date_utc,
+                    opponent=raw["tm"][opp_tno].get("name", ""),
+                    points=_num(p.get("sPoints")),
+                    rebounds_total=_num(p.get("sReboundsTotal")),
+                    assists=_num(p.get("sAssists")),
+                )
+            )
+            break
+
+    log.sort(key=lambda g: g.date_utc or "")
+    return log
+
+
+def list_seasons(conn) -> list[str]:
+    """Vrátí všechny sezóny, které mají v DB aspoň jeden zápas, seřazené od nejnovější."""
+    rows = conn.execute("SELECT DISTINCT season FROM matches WHERE season IS NOT NULL").fetchall()
+    seasons = [row["season"] for row in rows]
+    return sorted(seasons, key=lambda s: int(s.split("/")[0]), reverse=True)
