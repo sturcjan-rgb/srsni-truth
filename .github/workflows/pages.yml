@@ -1,0 +1,66 @@
+name: deploy-portal
+
+on:
+  # po každém úspěšném sync.yml (data se zaktualizovala -> portál se má
+  # přegenerovat)
+  workflow_run:
+    workflows: ["srsni-data sync"]
+    types: [completed]
+  # po změně kódu portálu (šablony, styl, generátor, moduly se statistikami)
+  push:
+    branches: [main]
+    paths:
+      - "templates/**"
+      - "static/**"
+      - "build_site.py"
+      - "aggregate.py"
+      - "lineups.py"
+      - "stats.py"
+      - "db.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # při workflow_run spouštět jen pokud sync doběhl úspěšně
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Nainstalovat uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Nainstalovat závislosti
+        run: uv sync
+
+      - name: Vygenerovat statický portál
+        run: uv run python3 build_site.py
+
+      - name: Nahrát jako Pages artefakt
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Nasadit na GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
