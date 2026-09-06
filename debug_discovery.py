@@ -1,52 +1,64 @@
 """
-Dočasný diagnostický skript (kolo 4) - /zapasy je root-relative (404 pod
-/tym/.../zapasy). Zkusíme: /tym/.../statistiky (má taky záložku
-"Zápasy"), /tym/.../sezona, a kořenové /zapasy s parametrem týmu.
+Dočasný diagnostický skript (kolo 5) - /zapasy?d_od=&d_do=&k=0 vrací 701KB
+ale 0 shod na přísný regex ^/zapas/(\\d+)$. Podíváme se na skutečný formát
+hrefs a hledáme filtr podle týmu (select/option/input).
 """
+
+import re
 
 import requests
 from bs4 import BeautifulSoup
 
-from discovery import MATCH_LINK_RE, TEAM_URL, USER_AGENT
+from discovery import USER_AGENT
 
 session = requests.Session()
 session.headers["User-Agent"] = USER_AGENT
 
+url = "https://nbl.basketball/zapasy?d_od=&d_do=&k=0"
+r = session.get(url, timeout=20)
+r.raise_for_status()
+html = r.text
+soup = BeautifulSoup(html, "html.parser")
 
-def try_url(label, url):
-    print("=" * 20, label, "=" * 20)
-    print(f"URL: {url}")
-    try:
-        r = session.get(url, timeout=15)
-        print(f"status: {r.status_code}")
-        if r.status_code != 200:
-            print(r.text[:300])
-            print()
-            return None
-        html = r.text
-    except requests.RequestException as e:
-        print(f"chyba: {e}")
-        print()
-        return None
+print(f"HTML délka: {len(html)}")
+print()
 
-    soup = BeautifulSoup(html, "html.parser")
-    print(f"HTML délka: {len(html)}")
-    ids = {}
-    for link in soup.find_all("a", href=True):
-        m = MATCH_LINK_RE.match(link["href"])
-        if m:
-            ids.setdefault(m.group(1), link)
-    print(f"Unikátních nbl_id: {len(ids)}")
-    for i, (nbl_id, link) in enumerate(ids.items()):
-        if i >= 3:
+print("=== Všechny hrefy obsahující 'zapas' (prvních 10 unikátních vzorů) ===")
+seen = set()
+count = 0
+for link in soup.find_all("a", href=True):
+    href = link["href"]
+    if "zapas" in href.lower():
+        # normalizovat číslo pryč, ať vidíme vzor
+        pattern = re.sub(r"\d+", "N", href)
+        if pattern not in seen:
+            seen.add(pattern)
+            count += 1
+            print(f"vzor={pattern!r} příklad={href!r}")
+        if count >= 10:
             break
-        parent_text = link.parent.get_text(" ", strip=True) if link.parent else None
-        print(f"  {nbl_id}: {parent_text!r}")
-    print()
-    return soup
 
+print()
+print("=== Hledání 'Srsni' / 'Sršni' v HTML ===")
+srsni_count = html.lower().count("sršni") + html.lower().count("srsni")
+print(f"počet výskytů 'sršni'/'srsni' (case-insensitive): {srsni_count}")
 
-try_url("STATISTIKY", f"{TEAM_URL}/statistiky")
-try_url("SEZONA", f"{TEAM_URL}/sezona")
-try_url("ROOT ZAPASY (bez filtru)", "https://nbl.basketball/zapasy")
-try_url("ROOT ZAPASY (s d_od/d_do/k)", "https://nbl.basketball/zapasy?d_od=&d_do=&k=0")
+print()
+print("=== Formulářové prvky (select/input) - možný filtr týmu ===")
+for form in soup.find_all("form"):
+    print("FORM action=", form.get("action"), "method=", form.get("method"))
+    for field in form.find_all(["select", "input"]):
+        name = field.get("name")
+        if name:
+            print(f"  {field.name} name={name!r}")
+            if field.name == "select":
+                for opt in field.find_all("option")[:5]:
+                    print(f"    option value={opt.get('value')!r} text={opt.get_text(strip=True)!r}")
+
+print()
+print("=== Odkaz na první nalezený tým Sršni v HTML (kontext) ===")
+idx = html.lower().find("sršni")
+if idx == -1:
+    idx = html.lower().find("srsni")
+if idx != -1:
+    print(html[max(0, idx - 300):idx + 300])
