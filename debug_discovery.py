@@ -1,8 +1,7 @@
 """
-Dočasný diagnostický skript (kolo 6) - ověří finální URL rozpisu:
-/zapasy?y=<rok>&c=421&p1=0&k=0&d_od=&d_do=
-kde y=rok počátku sezóny (2025 pro 2025/26), c=421 je Sršni Photomate
-Písek, a odkazy na zápas mají tvar /zapas/<id>#tab-pane-two.
+Dočasný diagnostický skript (kolo 7) - najde <tr> řádek pro každý
+zápas a zmapuje sloupce (round, číslo, datum, den, čas, domácí, hosté,
+skóre, čtvrtiny, fáze, odkazy).
 """
 
 import re
@@ -17,34 +16,38 @@ session.headers["User-Agent"] = USER_AGENT
 
 MATCH_LINK_RE_NEW = re.compile(r"^/zapas/(\d+)(?:#.*)?$")
 
+url = "https://nbl.basketball/zapasy?y=2025&c=421&p1=0&k=0&d_od=&d_do="
+r = session.get(url, timeout=20)
+r.raise_for_status()
+soup = BeautifulSoup(r.text, "html.parser")
 
-def check_season(year):
-    url = f"https://nbl.basketball/zapasy?y={year}&c=421&p1=0&k=0&d_od=&d_do="
-    r = session.get(url, timeout=20)
-    r.raise_for_status()
-    soup = BeautifulSoup(r.text, "html.parser")
+print("=== Hlavička tabulky (thead), pokud existuje ===")
+thead = soup.find("thead")
+print(str(thead)[:1000] if thead else "žádná <thead>")
+print()
 
-    ids = {}
-    for link in soup.find_all("a", href=True):
-        m = MATCH_LINK_RE_NEW.match(link["href"].strip())
-        if m:
-            ids.setdefault(m.group(1), link)
+seen_ids = set()
+rows_shown = 0
+for link in soup.find_all("a", href=True):
+    m = MATCH_LINK_RE_NEW.match(link["href"].strip())
+    if not m or m.group(1) in seen_ids:
+        continue
+    seen_ids.add(m.group(1))
+    rows_shown += 1
+    if rows_shown > 3:
+        break
 
-    print(f"=== rok={year} (sezóna {year}/{str(int(year) + 1)[-2:]}) ===")
-    print(f"URL: {url}")
-    print(f"Unikátních nbl_id: {len(ids)}")
-    for i, (nbl_id, link) in enumerate(ids.items()):
-        if i >= 3:
-            break
-        row = link
-        for _ in range(4):
-            if row.parent:
-                row = row.parent
-        print(f"  {nbl_id}: řádek text = {row.get_text(' ', strip=True)!r}")
-        print(f"       přímý parent text = {link.parent.get_text(' ', strip=True)!r}" if link.parent else "")
+    tr = link.find_parent("tr")
+    print(f"--- nbl_id={m.group(1)} ---")
+    if tr is None:
+        print("(žádný <tr> rodič)")
+        # zkusit najít nejbližší menší kontejner
+        print("link outer HTML:", str(link)[:300])
+        continue
+    cells = tr.find_all(["td", "th"])
+    print(f"počet buněk v <tr>: {len(cells)}")
+    for i, cell in enumerate(cells):
+        print(f"  [{i}] {cell.get_text(' ', strip=True)!r}")
+    print("tr outer HTML (zkráceno na 1500 znaků):")
+    print(str(tr)[:1500])
     print()
-    return ids
-
-
-for year in (2025, 2026):
-    check_season(year)
