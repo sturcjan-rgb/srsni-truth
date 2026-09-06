@@ -51,3 +51,26 @@ for link in soup.find_all("a", href=True):
 print(f"Celkem nalezeno odkazů na zápas: {count if count <= 5 else 'víc než 5 (viz výše prvních 5)'}")
 all_ids = {MATCH_LINK_RE.match(a["href"]).group(1) for a in soup.find_all("a", href=True) if MATCH_LINK_RE.match(a["href"])}
 print(f"Celkem unikátních nbl_id na stránce: {len(all_ids)}")
+
+print()
+print("=== Odkazy s textem naznačujícím rozpis/výsledky/kalendář ===")
+keyword_re = re.compile(r"rozpis|výsledk|zápas|kalend|schedule|program|sez[oó]n", re.IGNORECASE)
+seen_hrefs = set()
+for link in soup.find_all("a", href=True):
+    href = link["href"]
+    text = link.get_text(" ", strip=True)
+    if keyword_re.search(text) or keyword_re.search(href):
+        if href not in seen_hrefs:
+            seen_hrefs.add(href)
+            print(f"href={href!r} text={text!r}")
+
+print()
+print("=== Všechny unikátní vzory odkazů (první segment cesty) ===")
+path_prefixes = {}
+for link in soup.find_all("a", href=True):
+    href = link["href"]
+    if href.startswith("/"):
+        prefix = "/" + href.strip("/").split("/")[0]
+        path_prefixes[prefix] = path_prefixes.get(prefix, 0) + 1
+for prefix, cnt in sorted(path_prefixes.items(), key=lambda x: -x[1]):
+    print(f"{prefix}: {cnt}x")
