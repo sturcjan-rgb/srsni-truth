@@ -1,10 +1,8 @@
 """
-Dočasný diagnostický skript (kolo 3) - ověří skutečnou URL rozpisu
-(/tym/srsni-photomate-pisek/zapasy) a stránku pro přepínání sezóny
-(/tym/srsni-photomate-pisek/sezona), které se našly v kole 2.
+Dočasný diagnostický skript (kolo 4) - /zapasy je root-relative (404 pod
+/tym/.../zapasy). Zkusíme: /tym/.../statistiky (má taky záložku
+"Zápasy"), /tym/.../sezona, a kořenové /zapasy s parametrem týmu.
 """
-
-import re
 
 import requests
 from bs4 import BeautifulSoup
@@ -15,51 +13,40 @@ session = requests.Session()
 session.headers["User-Agent"] = USER_AGENT
 
 
-def fetch(url):
-    r = session.get(url, timeout=15)
-    r.raise_for_status()
-    return r.text
+def try_url(label, url):
+    print("=" * 20, label, "=" * 20)
+    print(f"URL: {url}")
+    try:
+        r = session.get(url, timeout=15)
+        print(f"status: {r.status_code}")
+        if r.status_code != 200:
+            print(r.text[:300])
+            print()
+            return None
+        html = r.text
+    except requests.RequestException as e:
+        print(f"chyba: {e}")
+        print()
+        return None
+
+    soup = BeautifulSoup(html, "html.parser")
+    print(f"HTML délka: {len(html)}")
+    ids = {}
+    for link in soup.find_all("a", href=True):
+        m = MATCH_LINK_RE.match(link["href"])
+        if m:
+            ids.setdefault(m.group(1), link)
+    print(f"Unikátních nbl_id: {len(ids)}")
+    for i, (nbl_id, link) in enumerate(ids.items()):
+        if i >= 3:
+            break
+        parent_text = link.parent.get_text(" ", strip=True) if link.parent else None
+        print(f"  {nbl_id}: {parent_text!r}")
+    print()
+    return soup
 
 
-print("=" * 20, "SCHEDULE URL", "=" * 20)
-schedule_url = f"{TEAM_URL}/zapasy?d_od=&d_do=&k=0"
-html = fetch(schedule_url)
-soup = BeautifulSoup(html, "html.parser")
-print(f"URL: {schedule_url}")
-print(f"HTML délka: {len(html)}")
-
-all_ids = {}
-for link in soup.find_all("a", href=True):
-    m = MATCH_LINK_RE.match(link["href"])
-    if m:
-        all_ids.setdefault(m.group(1), link)
-
-print(f"Celkem unikátních nbl_id: {len(all_ids)}")
-print()
-print("Prvních 5 zápasů (nbl_id + text rodiče/prarodiče):")
-for i, (nbl_id, link) in enumerate(all_ids.items()):
-    if i >= 5:
-        break
-    parent_text = link.parent.get_text(" ", strip=True) if link.parent else None
-    grandparent = link.parent.parent if link.parent else None
-    grandparent_text = grandparent.get_text(" ", strip=True) if grandparent else None
-    print(f"--- {nbl_id} ---")
-    print("parent:", repr(parent_text))
-    print("grandparent:", repr(grandparent_text))
-
-print()
-print("=" * 20, "SEZONA URL", "=" * 20)
-sezona_url = f"{TEAM_URL}/sezona"
-try:
-    html2 = fetch(sezona_url)
-    soup2 = BeautifulSoup(html2, "html.parser")
-    print(f"URL: {sezona_url}")
-    print(f"HTML délka: {len(html2)}")
-    season_like_re = re.compile(r"20\d{2}\s*/\s*\d{2}|20\d{2}-\d{2}")
-    print("Odkazy vypadající jako sezóny:")
-    for link in soup2.find_all("a", href=True):
-        text = link.get_text(" ", strip=True)
-        if season_like_re.search(text):
-            print(f"href={link['href']!r} text={text!r}")
-except requests.RequestException as e:
-    print(f"chyba: {e}")
+try_url("STATISTIKY", f"{TEAM_URL}/statistiky")
+try_url("SEZONA", f"{TEAM_URL}/sezona")
+try_url("ROOT ZAPASY (bez filtru)", "https://nbl.basketball/zapasy")
+try_url("ROOT ZAPASY (s d_od/d_do/k)", "https://nbl.basketball/zapasy?d_od=&d_do=&k=0")
