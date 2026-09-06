@@ -12,9 +12,9 @@
       <a class="logo" href="{{ root }}index.html">SRŠNI <span>DATA</span></a>
       <nav class="main-nav">
         <a href="{{ root }}index.html">Přehled</a>
-        {% if current_season %}
-        <a href="{{ root }}sezona/{{ current_season.slug }}.html">Sezóna {{ current_season.label }}</a>
-        {% endif %}
+        {% for s in all_seasons %}
+        <a href="{{ root }}sezona/{{ s.slug }}.html" class="{{ 'active' if season and season.slug == s.slug else '' }}">{{ s.label }}</a>
+        {% endfor %}
         <a href="{{ root }}hraci/index.html">Hráči</a>
       </nav>
     </div>

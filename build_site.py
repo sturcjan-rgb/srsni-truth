@@ -90,6 +90,7 @@ def build_index_page(env: Environment, conn, current_season_ctx: dict, seasons_c
         {
             "root": "",
             "current_season": current_season_ctx,
+            "all_seasons": seasons_ctx,
             "seasons": seasons_ctx,
             "record": record,
             "next_match": next_match,
@@ -100,7 +101,7 @@ def build_index_page(env: Environment, conn, current_season_ctx: dict, seasons_c
     )
 
 
-def build_season_page(env: Environment, conn, season: str, current_season_ctx: dict) -> None:
+def build_season_page(env: Environment, conn, season: str, current_season_ctx: dict, seasons_ctx: list[dict]) -> None:
     record = aggregate.team_record(conn, season)
     for g in record.games:
         g.date_fmt = fmt_date(g.date_utc)
@@ -143,6 +144,7 @@ def build_season_page(env: Environment, conn, season: str, current_season_ctx: d
         {
             "root": "../",
             "current_season": current_season_ctx,
+            "all_seasons": seasons_ctx,
             "season": {"slug": season_slug(season), "label": season},
             "record": record,
             "games": record.games,
@@ -154,12 +156,13 @@ def build_season_page(env: Environment, conn, season: str, current_season_ctx: d
     )
 
 
-def build_match_page(env: Environment, conn, match: db.Match, current_season_ctx: dict) -> None:
+def build_match_page(env: Environment, conn, match: db.Match, current_season_ctx: dict, seasons_ctx: list[dict]) -> None:
     raw = db.get_latest_snapshot(conn, match.nbl_id)
 
     ctx = {
         "root": "../",
         "current_season": current_season_ctx,
+        "all_seasons": seasons_ctx,
         "match": {
             "nbl_id": match.nbl_id,
             "home_team": match.home_team or "?",
@@ -203,7 +206,7 @@ def build_match_page(env: Environment, conn, match: db.Match, current_season_ctx
     render(env, "match.html", ctx, OUTPUT_DIR / "zapasy" / f"{match.nbl_id}.html")
 
 
-def build_player_pages(env: Environment, conn, current_season_ctx: dict, seasons: list[str]) -> None:
+def build_player_pages(env: Environment, conn, current_season_ctx: dict, seasons: list[str], seasons_ctx: list[dict]) -> None:
     career_players = aggregate.player_stats(conn, season=None)
     slug_by_name = {p.name: p.player_id for p in career_players}
     career_lineup = aggregate.season_lineup_stats(conn, season=None)
@@ -248,6 +251,7 @@ def build_player_pages(env: Environment, conn, current_season_ctx: dict, seasons
             {
                 "root": "../",
                 "current_season": current_season_ctx,
+                "all_seasons": seasons_ctx,
                 "player_name": p.name,
                 "career": p,
                 "seasons": seasons_data,
@@ -263,7 +267,12 @@ def build_player_pages(env: Environment, conn, current_season_ctx: dict, seasons
     render(
         env,
         "players_index.html",
-        {"root": "../", "current_season": current_season_ctx, "players": career_players},
+        {
+            "root": "../",
+            "current_season": current_season_ctx,
+            "all_seasons": seasons_ctx,
+            "players": career_players,
+        },
         OUTPUT_DIR / "hraci" / "index.html",
     )
 
@@ -288,12 +297,12 @@ def main() -> None:
         build_index_page(env, conn, current_season_ctx, seasons_ctx)
 
         for season in seasons:
-            build_season_page(env, conn, season, current_season_ctx)
+            build_season_page(env, conn, season, current_season_ctx, seasons_ctx)
 
         for match in db.list_matches(conn):
-            build_match_page(env, conn, match, current_season_ctx)
+            build_match_page(env, conn, match, current_season_ctx, seasons_ctx)
 
-        build_player_pages(env, conn, current_season_ctx, seasons)
+        build_player_pages(env, conn, current_season_ctx, seasons, seasons_ctx)
 
     print(f"Portál vygenerován do {OUTPUT_DIR}")
 

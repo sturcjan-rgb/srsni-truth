@@ -1,6 +1,16 @@
-/* Design podle Sršni TV (tv.srsni.com): černá + zlatá, Barlow Condensed. */
+/* Design podle Sršni TV (tv.srsni.com): černá + zlatá, Barlow Condensed.
+   Velké nadpisy na Sršni TV používají font "CoFo Peshka Black" - to je
+   ale placený komerční font (Contrast Foundry) a jeho zakódovaná podoba
+   v HTML tv.srsni.com neznamená volnou licenci pro použití jinde
+   (webfontové licence bývají vázané na konkrétní doménu). Místo něj
+   používáme "Anton" (Google Fonts, volná licence) - vizuálně nejbližší
+   volně použitelný "black" display font stejného typu (těžký, úzký,
+   velká písmena). Pokud má klub pro tenhle projekt vlastní licenci na
+   CoFo Peshka, stačí font přidat do static/ a přepsat proměnnou
+   --font-display níž. */
 
 @import url("https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Anton&display=swap");
 
 :root {
   --bg: #0a0a0b;
@@ -14,6 +24,8 @@
   --win: #3ecf6e;
   --loss: #ef5757;
   --radius: 10px;
+  --font-display: "Anton", "Barlow Condensed", sans-serif;
+  --font-heading: "Barlow Condensed", sans-serif;
 }
 
 * {
@@ -43,14 +55,20 @@ a {
 }
 
 h1, h2, h3, h4 {
-  font-family: "Barlow Condensed", sans-serif;
+  font-family: var(--font-heading);
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.01em;
   margin: 0 0 0.4em;
 }
 
-h1 { font-size: clamp(2rem, 5vw, 3.2rem); }
+h1 {
+  font-family: var(--font-display);
+  font-weight: 400; /* Anton má jen jeden (už dost "black") řez */
+  letter-spacing: 0;
+  font-size: clamp(2rem, 5vw, 3.2rem);
+}
+
 h2 { font-size: clamp(1.4rem, 3vw, 2rem); color: var(--gold); }
 h3 { font-size: 1.25rem; }
 
@@ -78,9 +96,10 @@ header.site-header {
 }
 
 .logo {
-  font-weight: 900;
-  font-size: 1.7rem;
-  letter-spacing: 0.03em;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.5rem;
+  letter-spacing: 0.01em;
   color: var(--gold);
   text-transform: uppercase;
 }
@@ -162,8 +181,9 @@ main {
 }
 
 .stat-tile .value {
-  font-size: 2.2rem;
-  font-weight: 900;
+  font-family: var(--font-display);
+  font-size: 2.1rem;
+  font-weight: 400;
   color: var(--gold);
   line-height: 1;
 }
