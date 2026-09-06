@@ -1,16 +1,31 @@
 """
 Discovery: najde všechny zápasy Sršňů Photomate Písek v dané sezóně.
 
-Zdroj dat: statická (bez JavaScriptu) stránka týmu na nbl.basketball,
-viz https://nbl.basketball/tym/srsni-photomate-pisek - obsahuje odkazy
-tvaru /zapas/<nbl_id> na jednotlivé zápasy.
+Zdroj dat: rozpis zápasů celé ligy na https://nbl.basketball/zapasy,
+staticky vykreslený jako tabulka, s filtrem podle týmu a sezóny v query
+parametrech GET formuláře na téhle stránce:
 
-Poznámka k sezónám: přesný formát URL parametru pro přepnutí na historickou
-sezónu (2024/25, 2023/24, ...) nebyl předem ověřený. Místo natvrdo
-zadaného hádání to tahle modul zjišťuje sám za běhu - vyzkouší několik
-běžných variant query parametru a porovná, jestli se výpis zápasů v HTML
-skutečně změnil oproti výchozí (aktuální) sezóně. Pokud narazí na
-fungující variantu, použije ji; jinak spadne zpátky na výchozí sezónu.
+- "c"  = ID týmu (Sršni Photomate Písek má ID 421 - zjištěno z <select
+         name="c"> na stránce, viz její možnosti)
+- "y"  = počáteční rok sezóny (2025 pro sezónu "2025/26", 2026 pro
+         "2026/27", ...)
+- "p1" = fáze sezóny (0 = všechny - základní část i play-off)
+- "k"  = kolo (0 = všechna)
+
+Tahle stránka obsahuje i BUDOUCÍ (ještě neodehrané) zápasy - jen bez
+skóre. U odehraných zápasů je skóre uvnitř odkazu na detail zápasu
+(/zapas/<id>#tab-pane-one), u budoucích je odkaz na náhled
+(/zapas/<id>#tab-pane-two). Datum+čas výkopu je navíc v atributu
+data-sort buňky s datem, ve formátu "YYYY-MM-DD-HH-MM" (lokální čas
+Evropa/Praha) - mnohem spolehlivější než parsovat zobrazený text.
+
+Poznámka: dřívější verze tohohle modulu cílila na
+https://nbl.basketball/tym/srsni-photomate-pisek, což se ukázalo jako
+omyl - ta stránka je jen malý "poslední výsledek + příští zápas" widget,
+ne celý rozpis. Skutečnou strukturu (URL s parametry, sloupce tabulky)
+se podařilo zjistit až empiricky přes diagnostické běhy v GitHub
+Actions (síť ve vývojové sandboxi byla k nbl.basketball zablokovaná
+organizační politikou).
 """
 
 from __future__ import annotations
@@ -18,125 +33,159 @@ from __future__ import annotations
 import re
 import time
 from dataclasses import dataclass
-from urllib.parse import urlencode
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 import requests
 from bs4 import BeautifulSoup
 
-TEAM_URL = "https://nbl.basketball/tym/srsni-photomate-pisek"
+SCHEDULE_URL = "https://nbl.basketball/zapasy"
+TEAM_ID = 421  # Sršni Photomate Písek
 
 # Slušné chování vůči cizímu webu: představíme se a mezi requesty počkáme.
 USER_AGENT = "srsni-data/0.1 (+kontakt: klub Srsni Photomate Pisek; osobni projekt pro vlastni statistiky)"
 REQUEST_DELAY_SECONDS = 0.8
 
-# Kandidátní formáty query parametru pro přepnutí sezóny - vyzkouší se
-# postupně, dokud jeden z nich nezmění výsledný seznam zápasů.
-SEASON_PARAM_CANDIDATES = ["season", "sezona", "sezóna", "rocnik", "year", "y"]
+# Odkaz na detail zápasu má tvar /zapas/<id>, případně s fragmentem
+# (#tab-pane-one u odehraných, #tab-pane-two u budoucích zápasů).
+MATCH_LINK_RE = re.compile(r"^/zapas/(\d+)(?:#.*)?$")
 
-# Regulérní výraz na odkazy na detail zápasu, např. href="/zapas/544546"
-MATCH_LINK_RE = re.compile(r"^/zapas/(\d+)$")
+# Přímý odkaz na FIBA LiveStats webcast, pokud ho tabulka už obsahuje.
+FIBA_WEBCAST_RE = re.compile(r"https://www\.fibalivestats\.com/webcast/[^/\s\"']+/(\d+)/?")
+
+# Formát atributu data-sort na buňce s datem: "2025-10-04-18-00".
+DATE_SORT_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})-(\d{2})-(\d{2})$")
+
+PRAGUE_TZ = ZoneInfo("Europe/Prague")
 
 
 @dataclass
 class DiscoveredMatch:
-    """Jeden zápas nalezený v rozpisu - zatím jen to, co je vidět z HTML."""
+    """Jeden zápas nalezený v rozpisu."""
 
     nbl_id: int
     url: str
-    summary_text: str  # okolní text odkazu (datum, domácí/hosté) pro čitelnost
+    date_utc: str | None
+    home_team: str | None
+    away_team: str | None
+    fiba_id: int | None  # vyplněné, pokud tabulka už obsahuje odkaz na FIBA LiveStats
 
 
-def _get(session: requests.Session, url: str) -> str:
+def _season_start_year(season: str) -> int:
+    """Z řetězce jako '2025/26' vytáhne počáteční rok sezóny (2025)."""
+    return int(season.split("/")[0])
+
+
+def _parse_date_cell(cell) -> str | None:
+    """Vytáhne datum+čas z atributu data-sort (lokální čas -> UTC ISO string)."""
+    raw = cell.get("data-sort")
+    if not raw:
+        return None
+    match = DATE_SORT_RE.match(raw)
+    if not match:
+        return None
+    year, month, day, hour, minute = (int(x) for x in match.groups())
+    try:
+        local_dt = datetime(year, month, day, hour, minute, tzinfo=PRAGUE_TZ)
+    except ValueError:
+        return None
+    return local_dt.astimezone(timezone.utc).isoformat()
+
+
+def _parse_teams_cell(cell) -> tuple[str | None, str | None]:
+    """
+    Vytáhne domácí a hostující tým ze sloupce "domácí / hosté".
+
+    V buňce jsou dvě "listové" <div> (bez vlastních vnořených <div>) v
+    pořadí domácí, hosté - obalující <div> by při get_text() vrátil
+    oba texty spojené dohromady, proto filtrujeme jen ty bez potomků.
+    """
+    leaf_divs = [d for d in cell.find_all("div") if not d.find("div")]
+    texts = [d.get_text(strip=True) for d in leaf_divs if d.get_text(strip=True)]
+    if len(texts) >= 2:
+        return texts[0], texts[1]
+    return None, None
+
+
+def _extract_fiba_id(row) -> int | None:
+    """Pokud řádek zápasu obsahuje přímý odkaz na FIBA LiveStats, vytáhne fiba_id."""
+    for link in row.find_all("a", href=True):
+        match = FIBA_WEBCAST_RE.search(link["href"])
+        if match:
+            return int(match.group(1))
+    return None
+
+
+def _get(session: requests.Session, url: str, params: dict) -> str:
     """Stáhne stránku a vrátí HTML. Mezi voláními počká, ať web nezatěžujeme."""
-    response = session.get(url, timeout=15)
+    response = session.get(url, params=params, timeout=15)
     response.raise_for_status()
     time.sleep(REQUEST_DELAY_SECONDS)
     return response.text
 
 
-def _extract_matches(html: str) -> list[DiscoveredMatch]:
-    """Z HTML stránky týmu vytáhne všechny odkazy na zápasy."""
-    soup = BeautifulSoup(html, "html.parser")
-    matches: list[DiscoveredMatch] = []
-    seen_ids: set[int] = set()
-
-    for link in soup.find_all("a", href=True):
-        match = MATCH_LINK_RE.match(link["href"])
-        if not match:
-            continue
-        nbl_id = int(match.group(1))
-        if nbl_id in seen_ids:
-            continue
-        seen_ids.add(nbl_id)
-
-        # Okolní text (řádek s datem a týmy) bereme z rodičovského elementu,
-        # protože samotný <a> často obaluje jen část informací.
-        container = link.parent
-        summary_text = container.get_text(" ", strip=True) if container else link.get_text(" ", strip=True)
-
-        matches.append(
-            DiscoveredMatch(
-                nbl_id=nbl_id,
-                url=f"https://nbl.basketball/zapas/{nbl_id}",
-                summary_text=summary_text,
-            )
-        )
-
-    return matches
-
-
-def _find_season_query(session: requests.Session, season: str, baseline_ids: set[int]) -> str | None:
+def discover_matches(season: str) -> list[DiscoveredMatch]:
     """
-    Experimentálně zjistí, jaký query parametr přepne rozpis na danou sezónu.
+    Vrátí seznam zápasů Sršňů pro danou sezónu, např. "2025/26".
 
-    Zkusí kandidátní parametry ze SEASON_PARAM_CANDIDATES v kombinaci s
-    různým formátem hodnoty (např. "2024/25" i "2024-25") a porovná
-    výsledné ID zápasů s výchozí (aktuální) sezónou. Pokud se seznam
-    zápasů liší a není prázdný, považuje to za nalezenou fungující variantu.
-    """
-    value_variants = [season, season.replace("/", "-"), season.split("/")[0]]
-
-    for param_name in SEASON_PARAM_CANDIDATES:
-        for value in value_variants:
-            query = urlencode({param_name: value})
-            url = f"{TEAM_URL}?{query}"
-            try:
-                html = _get(session, url)
-            except requests.RequestException:
-                continue
-            candidate_ids = {m.nbl_id for m in _extract_matches(html)}
-            if candidate_ids and candidate_ids != baseline_ids:
-                return query
-
-    return None
-
-
-def discover_matches(season: str | None = None) -> list[DiscoveredMatch]:
-    """
-    Vrátí seznam zápasů Sršňů pro danou sezónu.
-
-    season: řetězec jako "2024/25", nebo None pro aktuální (výchozí) sezónu.
+    Zahrnuje i budoucí (ještě neodehrané) zápasy - tabulka na
+    nbl.basketball je obsahuje stejně jako odehrané, jen bez skóre.
     """
     session = requests.Session()
     session.headers["User-Agent"] = USER_AGENT
 
-    baseline_html = _get(session, TEAM_URL)
-    baseline_matches = _extract_matches(baseline_html)
+    params = {
+        "y": _season_start_year(season),
+        "c": TEAM_ID,
+        "p1": 0,  # všechny fáze sezóny (základní část i play-off)
+        "k": 0,  # všechna kola
+        "d_od": "",
+        "d_do": "",
+    }
+    html = _get(session, SCHEDULE_URL, params)
+    soup = BeautifulSoup(html, "html.parser")
 
-    if season is None:
-        return baseline_matches
+    # Hledáme jen uvnitř <main> - v hlavičce stránky je vlastní "další
+    # zápas" widget s odkazem na /zapas/<id>, který by jinak matchnul
+    # taky, ale nemá žádná další data k vytažení (viz find_parent("tr")
+    # níže, který takové odkazy stejně přeskočí).
+    main = soup.find("main") or soup
 
-    baseline_ids = {m.nbl_id for m in baseline_matches}
-    query = _find_season_query(session, season, baseline_ids)
-    if query is None:
-        # Nepodařilo se najít funkční parametr - vrátíme aspoň aktuální
-        # sezónu, ať volající nedostane prázdno / chybu.
-        return baseline_matches
+    matches: dict[int, DiscoveredMatch] = {}
+    for link in main.find_all("a", href=True):
+        match = MATCH_LINK_RE.match(link["href"].strip())
+        if not match:
+            continue
+        nbl_id = int(match.group(1))
+        if nbl_id in matches:
+            continue
 
-    season_html = _get(session, f"{TEAM_URL}?{query}")
-    return _extract_matches(season_html)
+        row = link.find_parent("tr")
+        if row is None:
+            # Odkaz mimo tabulku (např. widget nad rozpisem) - nemá
+            # sloupce k vytažení, přeskočíme.
+            continue
+
+        cells = row.find_all(["td", "th"])
+        date_utc = _parse_date_cell(cells[2]) if len(cells) > 2 else None
+        home_team, away_team = _parse_teams_cell(cells[3]) if len(cells) > 3 else (None, None)
+        fiba_id = _extract_fiba_id(row)
+
+        matches[nbl_id] = DiscoveredMatch(
+            nbl_id=nbl_id,
+            url=f"https://nbl.basketball/zapas/{nbl_id}",
+            date_utc=date_utc,
+            home_team=home_team,
+            away_team=away_team,
+            fiba_id=fiba_id,
+        )
+
+    return list(matches.values())
 
 
 if __name__ == "__main__":
-    for m in discover_matches():
-        print(m.nbl_id, "-", m.summary_text)
+    import sys
+
+    season_arg = sys.argv[1] if len(sys.argv) > 1 else "2025/26"
+    for m in discover_matches(season_arg):
+        print(m)

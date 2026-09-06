@@ -4,28 +4,23 @@ statistik do jedné databáze.
 
 Postup pro danou sezónu:
 
-1. discovery.discover_matches(season) - najde zápasy Sršňů a uloží je
-   (nebo aktualizuje) do tabulky matches.
-2. Pro zápasy, které ještě nemají fiba_id, zkusí resolve.get_fiba_id -
-   pokud zápas ještě nemá přiřazený FIBA feed, v klidu to přeskočí.
+1. discovery.discover_matches(season) - najde zápasy Sršňů (včetně
+   budoucích) a uloží je (nebo aktualizuje) do tabulky matches. Datum,
+   domácí/hosté tým a případně i fiba_id (pokud ho už rozpis obsahuje)
+   se berou přímo z tabulky rozpisu - viz discovery.py.
+2. Pro zápasy, které ještě fiba_id nemají (rozpis ho ještě neobsahoval),
+   zkusí resolve.get_fiba_id jako záložní krok - pokud zápas ještě nemá
+   přiřazený FIBA feed, v klidu to přeskočí.
 3. Pro zápasy, které fiba_id mají, a nemají ještě dnešní snapshot (nebo
    nejsou "finished"), stáhne https://fibalivestats.dcd.shared.geniussports.com/data/<fiba_id>/data.json,
    uloží ho jako nový snapshot a podle stats.is_match_finished()
    aktualizuje status zápasu na finished/live/upcoming.
-
-Poznámka: parsování data/času zápasu a jmen týmů z textu na stránce
-rozpisu (summary_text z discovery.py) je jen heuristika - přesný formát
-textu na nbl.basketball nebyl možné v této sandboxi ověřit (síť je
-zablokovaná organizační politikou). Pokud parsování selže, prostě se to
-pole nechá prázdné - nic tím nespadne.
 """
 
 from __future__ import annotations
 
-import re
 import time
-from datetime import datetime, timezone
-from zoneinfo import ZoneInfo
+from datetime import date, datetime, timezone
 
 import requests
 
@@ -38,41 +33,16 @@ FIBA_DATA_URL_TEMPLATE = "https://fibalivestats.dcd.shared.geniussports.com/data
 
 REQUEST_DELAY_SECONDS = 0.8
 
-# Heuristika na datum+čas zápasu v textu okolo odkazu, např. "14.9.2025 17:00".
-# Formát nebyl možné ověřit naživo - viz poznámka v README.
-_DATE_TIME_RE = re.compile(r"(\d{1,2})\.\s*(\d{1,2})\.\s*(\d{4})?\D{0,10}(\d{1,2}):(\d{2})")
 
-# Heuristika na oddělovač mezi domácím a hostujícím týmem ("Tym A - Tym B").
-_TEAM_SEPARATOR_RE = re.compile(r"\s(?:-|–|vs\.?)\s")
-
-# Zkratky dnů v týdnu, které se občas objevují na začátku textu ("So 14.9. ...").
-_WEEKDAY_PREFIX_RE = re.compile(r"^(?:Po|Út|St|Čt|Pá|So|Ne)\b[.,]?\s*", re.IGNORECASE)
-
-PRAGUE_TZ = ZoneInfo("Europe/Prague")
-
-
-def parse_kickoff_utc(summary_text: str, default_year: int | None = None) -> str | None:
-    """Zkusí z textu vytáhnout datum+čas výkopu a převést ho na UTC ISO string."""
-    match = _DATE_TIME_RE.search(summary_text)
-    if not match:
-        return None
-
-    day, month, year, hour, minute = match.groups()
-    year_int = int(year) if year else (default_year or datetime.now().year)
-    try:
-        local_dt = datetime(year_int, int(month), int(day), int(hour), int(minute), tzinfo=PRAGUE_TZ)
-    except ValueError:
-        return None
-    return local_dt.astimezone(timezone.utc).isoformat()
-
-
-def parse_teams(summary_text: str) -> tuple[str | None, str | None]:
-    """Zkusí z textu vytáhnout jména domácího a hostujícího týmu."""
-    text_without_date = _WEEKDAY_PREFIX_RE.sub("", _DATE_TIME_RE.sub(" ", summary_text).strip())
-    parts = [p.strip(" .,:-–") for p in _TEAM_SEPARATOR_RE.split(text_without_date) if p.strip(" .,:-–")]
-    if len(parts) >= 2:
-        return parts[0], parts[1]
-    return None, None
+def current_season_guess(today: date | None = None) -> str:
+    """
+    Odhadne aktuální sezónu podle data - NBL sezóna začíná na podzim
+    (kolem září) a končí následující jaro. Použije se jako výchozí
+    hodnota, když volající explicitně nezadá sezónu.
+    """
+    today = today or datetime.now(timezone.utc).date()
+    start_year = today.year if today.month >= 7 else today.year - 1
+    return f"{start_year}/{str(start_year + 1)[-2:]}"
 
 
 def fetch_fiba_data(fiba_id: int, session: requests.Session) -> dict:
@@ -105,9 +75,14 @@ def sync_season(season: str | None = None, db_path=db.DB_PATH) -> dict:
     """
     Provede jeden kompletní synchronizační běh pro danou sezónu.
 
+    season: např. "2025/26". Když se vynechá, odhadne se aktuální
+    sezóna podle dnešního data (current_season_guess).
+
     Vrací malé shrnutí (kolik zápasů objeveno/resolvováno/staženo), ať má
     volající (CLI nebo MCP nástroj sync_schedule) co ukázat uživateli.
     """
+    season = season or current_season_guess()
+
     session = requests.Session()
     session.headers["User-Agent"] = USER_AGENT
 
@@ -118,20 +93,20 @@ def sync_season(season: str | None = None, db_path=db.DB_PATH) -> dict:
         summary["discovered"] = len(discovered)
 
         for item in discovered:
-            date_utc = parse_kickoff_utc(item.summary_text)
-            home_team, away_team = parse_teams(item.summary_text)
             db.upsert_match(
                 conn,
                 item.nbl_id,
                 season=season,
-                date_utc=date_utc,
-                home_team=home_team,
-                away_team=away_team,
+                date_utc=item.date_utc,
+                home_team=item.home_team,
+                away_team=item.away_team,
+                fiba_id=item.fiba_id,
             )
 
         matches = db.list_matches(conn, season=season)
 
-        # Krok 2: dohledat fiba_id u zápasů, které ho ještě nemají.
+        # Krok 2: dohledat fiba_id u zápasů, které ho ještě nemají
+        # (rozpis ho ještě neobsahoval - typicky u zápasů dál v budoucnu).
         for match in matches:
             if match.fiba_id is not None:
                 continue
@@ -171,7 +146,7 @@ if __name__ == "__main__":
 
     season_arg = sys.argv[1] if len(sys.argv) > 1 else None
     result = sync_season(season_arg)
-    print(f"Sezóna: {season_arg or '(aktuální)'}")
+    print(f"Sezóna: {season_arg or current_season_guess() + ' (odhad)'}")
     print(f"Objeveno zápasů: {result['discovered']}")
     print(f"Dohledáno nových fiba_id: {result['resolved']}")
     print(f"Uloženo nových snapshotů: {result['snapshots_saved']}")

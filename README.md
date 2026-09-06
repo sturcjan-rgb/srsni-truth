@@ -14,12 +14,17 @@ Je to čistě Python projekt spravovaný přes [uv](https://docs.astral.sh/uv/).
 
 ## Jak to funguje pod kapotou
 
-1. `discovery.py` stáhne stránku týmu `https://nbl.basketball/tym/srsni-photomate-pisek`
-   (funguje i bez JavaScriptu) a najde všechny odkazy na zápasy.
-2. `resolve.py` pro každý zápas otevře jeho detail `https://nbl.basketball/zapas/<nbl_id>`
-   a najde tam odkaz na FIBA LiveStats webcast, ze kterého vytáhne `fiba_id`.
-   U zápasů, které se ještě neodehrály, tenhle odkaz typicky ještě není -
-   to není chyba, prostě se to zkusí příště.
+1. `discovery.py` stáhne rozpis celé ligy z `https://nbl.basketball/zapasy`
+   s filtrem podle týmu (`c=421` je Sršni Photomate Písek) a sezóny
+   (`y=<počáteční rok>`), staticky vykreslenou tabulku, a najde v ní
+   všechny zápasy Sršňů - včetně budoucích (ty jsou v tabulce taky, jen
+   bez skóre). Datum, čas a jména týmů se berou přímo ze struktury
+   tabulky (atribut `data-sort` na buňce s datem, dvě buňky se jmény
+   týmů), ne z volného textu.
+2. Pokud tabulka u zápasu ještě neobsahuje přímý odkaz na FIBA
+   LiveStats (typicky u zápasů dál v budoucnu), `resolve.py` to zkusí
+   dohledat na stránce detailu zápasu `https://nbl.basketball/zapas/<nbl_id>`.
+   Pokud tam odkaz ještě není, v klidu to přeskočí - zkusí se to příště.
 3. Ze `fiba_id` se dá přímo stáhnout JSON se statistikami:
    `https://fibalivestats.dcd.shared.geniussports.com/data/<fiba_id>/data.json`
 4. Všechno se ukládá do `srsni.db` (SQLite, negituje se) - tabulka
@@ -65,25 +70,18 @@ uv run python3 live.py 492428
 Po `sync.py` se v adresáři objeví `srsni.db` - dá se prohlížet třeba
 přes `sqlite3 srsni.db` nebo jakýkoliv SQLite prohlížeč.
 
-### Důležitá poznámka k ověření naživo
+### Poznámka k vývoji
 
-Tenhle projekt byl vyvíjený v sandboxu, kde organizační síťová politika
-blokovala přístup na `nbl.basketball` i `fibalivestats.com` /
-`geniussports.com` - nešlo tedy živě ověřit:
-
-- přesný formát URL parametru pro přepnutí na historickou sezónu
-  (`discovery.py` si ho zkouší zjistit sám za běhu - vyzkouší několik
-  kandidátních query parametrů a porovná, jestli se výpis zápasů
-  skutečně změnil),
-- přesný formát textu s datem/týmy na stránce rozpisu (`sync.py` má na
-  to heuristiku `parse_kickoff_utc` / `parse_teams`, ale je potřeba ji
-  po prvním ostrém spuštění zkontrolovat a případně doladit).
-
-Základní řetězec (`resolve.py` → `fibalivestats.dcd.shared.geniussports.com/data/<id>/data.json`
-→ `stats.py`) vychází z faktů ověřených předem naživo, takže by měl
-fungovat bez úprav. Při prvním spuštění v prostředí s běžným internetem
-stačí zkontrolovat výstup `sync.py` a podle potřeby doladit regulární
-výrazy v `sync.py`.
+Vývojová sandbox, ve které tenhle projekt vznikl, měla organizační
+síťovou politikou zablokovaný přístup na `nbl.basketball` i
+`fibalivestats.com`/`geniussports.com`. Přesná struktura rozpisu
+(URL `/zapasy` s parametry `y`/`c`/`p1`/`k`, ID týmu 421, sloupce
+tabulky) se proto zjišťovala empiricky přes diagnostické běhy v GitHub
+Actions (tam síť funguje normálně) - první verze `discovery.py` mířila
+na špatnou URL (widget se dvěma zápasy místo celého rozpisu) a
+parsování data/týmů z volného textu úplně selhávalo. Aktuální verze je
+už postavená na skutečné struktuře stránky a ověřená na reálném běhu
+(sezóny 2025/26 i 2026/27, včetně budoucích zápasů).
 
 ## Připojení do Claude Code
 
