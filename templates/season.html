@@ -123,9 +123,10 @@
   <p class="prose" style="color:var(--text-muted); margin-top:-0.5rem;">
     Kolik bodů dal tým, zatímco spolu tahle dvojice hrála na hřišti (ne prostý součet jejich osobních bodů).
   </p>
+  {% set max_pair = combos.pairs[0][1] if combos.pairs else 1 %}
   <div class="combo-list rank">
     {% for combo, pts in combos.pairs %}
-    <div class="combo-row">
+    <div class="combo-row" style="--pct: {{ (pts / max_pair * 100) | round(1) }}%">
       <span class="rank-num">{{ loop.index }}.</span>
       <span class="names">{{ combo|join(" + ") }}</span>
       <span class="points">{{ pts }} b.</span>
@@ -137,9 +138,10 @@
 <div class="grid-2">
   <div class="section">
     <div class="section-title"><h2>Nejlepší trojice</h2></div>
+    {% set max_trio = combos.trios[0][1] if combos.trios else 1 %}
     <div class="combo-list rank">
       {% for combo, pts in combos.trios %}
-      <div class="combo-row">
+      <div class="combo-row" style="--pct: {{ (pts / max_trio * 100) | round(1) }}%">
         <span class="rank-num">{{ loop.index }}.</span>
         <span class="names">{{ combo|join(" + ") }}</span>
         <span class="points">{{ pts }} b.</span>
@@ -150,9 +152,10 @@
 
   <div class="section">
     <div class="section-title"><h2>Nejlepší pětky</h2></div>
+    {% set max_five = combos.fives[0][1] if combos.fives else 1 %}
     <div class="combo-list rank">
       {% for combo, pts in combos.fives %}
-      <div class="combo-row">
+      <div class="combo-row" style="--pct: {{ (pts / max_five * 100) | round(1) }}%">
         <span class="rank-num">{{ loop.index }}.</span>
         <span class="names">{{ combo|join(", ") }}</span>
         <span class="points">{{ pts }} b.</span>
@@ -164,9 +167,10 @@
 
 <div class="section">
   <div class="section-title"><h2>Kdo si s kým nejvíc nahrál</h2></div>
+  {% set max_assist = combos.assists[0][1] if combos.assists else 1 %}
   <div class="combo-list rank">
     {% for pair, count, pts in combos.assists %}
-    <div class="combo-row">
+    <div class="combo-row" style="--pct: {{ (count / max_assist * 100) | round(1) }}%">
       <span class="rank-num">{{ loop.index }}.</span>
       <span class="names">{{ pair|join(" ↔ ") }}</span>
       <span class="points">{{ count }}× ({{ pts }} b.)</span>

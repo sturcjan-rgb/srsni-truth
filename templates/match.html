@@ -59,9 +59,10 @@
 {% if match_combos and match_combos.pairs %}
 <div class="section">
   <div class="section-title"><h2>Nejlepší dvojice v tomhle zápase</h2></div>
+  {% set max_pair = match_combos.pairs[0][1] if match_combos.pairs else 1 %}
   <div class="combo-list rank">
     {% for combo, pts in match_combos.pairs %}
-    <div class="combo-row">
+    <div class="combo-row" style="--pct: {{ (pts / max_pair * 100) | round(1) }}%">
       <span class="rank-num">{{ loop.index }}.</span>
       <span class="names">{{ combo|join(" + ") }}</span>
       <span class="points">{{ pts }} b.</span>
@@ -74,9 +75,10 @@
 {% if match_combos and match_combos.assists %}
 <div class="section">
   <div class="section-title"><h2>Asistence v tomhle zápase</h2></div>
+  {% set max_assist = match_combos.assists[0][1] if match_combos.assists else 1 %}
   <div class="combo-list rank">
     {% for pair, count, pts in match_combos.assists %}
-    <div class="combo-row">
+    <div class="combo-row" style="--pct: {{ (count / max_assist * 100) | round(1) }}%">
       <span class="rank-num">{{ loop.index }}.</span>
       <span class="names">{{ pair|join(" ↔ ") }}</span>
       <span class="points">{{ count }}× ({{ pts }} b.)</span>

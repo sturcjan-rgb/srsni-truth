@@ -1,6 +1,7 @@
-/* Design podle Sršni TV (tv.srsni.com): černá + zlatá, Barlow Condensed +
-   CoFo Peshka Black pro velké nadpisy (font stažený přímo ze Sršni TV -
-   stejná organizace provozuje oba weby). */
+/* Design podle Sršni TV (tv.srsni.com): grafitové pozadí + jantarový akcent,
+   Barlow Condensed + CoFo Peshka Black pro velké nadpisy (font stažený přímo
+   ze Sršni TV - stejná organizace provozuje oba weby). Klidný, čitelný
+   "data-first" dashboard - žlutá jen jako akcent, ne jako plocha. */
 
 @import url("https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&display=swap");
 
@@ -13,17 +14,20 @@
 }
 
 :root {
-  --bg: #0a0a0b;
-  --surface: #17171a;
-  --surface-2: #1f1f23;
-  --border: rgba(255, 255, 255, 0.09);
-  --gold: #ffd31a;
-  --gold-dim: #7a6600;
-  --text: #f5f5f2;
-  --text-muted: #9a9a9f;
-  --win: #3ecf6e;
-  --loss: #ef5757;
-  --radius: 10px;
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface-2: #1c212b;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-soft: rgba(255, 255, 255, 0.05);
+  --row-hover: rgba(255, 255, 255, 0.02);
+  --accent: #f59e0b;
+  --accent-soft: rgba(245, 158, 11, 0.14);
+  --text: #f0f6fc;
+  --text-muted: #8b949e;
+  --win: #3fb950;
+  --loss: #f85149;
+  --radius: 12px;
+  --radius-sm: 8px;
   --font-display: "CoFo Peshka Black", "Barlow Condensed", sans-serif;
   --font-heading: "Barlow Condensed", sans-serif;
 }
@@ -43,6 +47,7 @@ body {
   font-family: "Barlow Condensed", system-ui, -apple-system, "Segoe UI", sans-serif;
   font-size: 17px;
   line-height: 1.45;
+  font-variant-numeric: tabular-nums;
 }
 
 p, .prose {
@@ -60,6 +65,7 @@ h1, h2, h3, h4 {
   text-transform: uppercase;
   letter-spacing: 0.01em;
   margin: 0 0 0.4em;
+  color: var(--text);
 }
 
 h1 {
@@ -69,8 +75,8 @@ h1 {
   font-size: clamp(2rem, 5vw, 3.2rem);
 }
 
-h2 { font-size: clamp(1.4rem, 3vw, 2rem); color: var(--gold); }
-h3 { font-size: 1.25rem; }
+h2 { font-size: clamp(1.3rem, 3vw, 1.8rem); }
+h3 { font-size: 1.15rem; }
 
 .container {
   max-width: 1080px;
@@ -82,7 +88,7 @@ h3 { font-size: 1.25rem; }
 
 header.site-header {
   border-bottom: 1px solid var(--border);
-  background: #000;
+  background: var(--surface);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -100,7 +106,7 @@ header.site-header {
   font-weight: 900;
   font-size: 1.5rem;
   letter-spacing: 0.01em;
-  color: var(--gold);
+  color: var(--accent);
   text-transform: uppercase;
 }
 
@@ -119,12 +125,18 @@ nav.main-nav {
 
 nav.main-nav a {
   color: var(--text-muted);
-  transition: color 0.15s;
+  padding-bottom: 3px;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
 }
 
-nav.main-nav a:hover,
+nav.main-nav a:hover {
+  color: var(--text);
+}
+
 nav.main-nav a.active {
-  color: var(--gold);
+  color: var(--accent);
+  border-bottom-color: var(--accent);
 }
 
 /* --- Obsah --- */
@@ -141,13 +153,15 @@ main {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  border-bottom: 2px solid var(--gold);
-  padding-bottom: 0.35rem;
-  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.6rem;
+  margin-bottom: 1.1rem;
 }
 
 .section-title h2 {
   margin: 0;
+  padding-left: 0.7rem;
+  border-left: 3px solid var(--accent);
 }
 
 .section-title .more {
@@ -163,7 +177,7 @@ main {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 1.1rem 1.25rem;
+  padding: 1.4rem 1.5rem;
 }
 
 .tile-row {
@@ -176,23 +190,24 @@ main {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 1rem 1rem 0.85rem;
+  padding: 1.25rem 1.1rem 1.05rem;
   text-align: center;
 }
 
 .stat-tile .value {
-  font-family: var(--font-display);
-  font-size: 2.1rem;
-  font-weight: 900;
-  color: var(--gold);
+  font-family: var(--font-heading);
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--text);
   line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-tile .label {
-  margin-top: 0.35rem;
-  font-size: 0.8rem;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   color: var(--text-muted);
   font-weight: 700;
 }
@@ -212,18 +227,18 @@ table {
 }
 
 th, td {
-  padding: 0.5rem 0.65rem;
+  padding: 0.65rem 0.8rem;
   text-align: right;
   white-space: nowrap;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-soft);
   font-size: 0.95rem;
 }
 
 th {
   font-weight: 800;
   text-transform: uppercase;
-  font-size: 0.75rem;
-  letter-spacing: 0.03em;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
   color: var(--text-muted);
   background: var(--surface-2);
 }
@@ -234,7 +249,7 @@ td.text, th.text {
 }
 
 tbody tr:hover {
-  background: var(--surface-2);
+  background: var(--row-hover);
 }
 
 tbody tr:last-child td {
@@ -242,8 +257,12 @@ tbody tr:last-child td {
 }
 
 td a, th a {
-  color: var(--gold);
+  color: var(--text);
   font-weight: 700;
+}
+
+td a:hover, th a:hover {
+  color: var(--accent);
 }
 
 /* --- Zápasy / výsledky --- */
@@ -262,11 +281,11 @@ td a, th a {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 0.6rem 0.9rem;
+  padding: 0.75rem 1rem;
 }
 
 .game-row:hover {
-  border-color: var(--gold-dim);
+  border-color: var(--accent);
 }
 
 .game-row .date {
@@ -280,9 +299,10 @@ td a, th a {
 }
 
 .game-row .score {
-  font-weight: 900;
+  font-weight: 800;
   font-size: 1.15rem;
-  color: var(--gold);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
 
 .badge {
@@ -291,14 +311,14 @@ td a, th a {
   justify-content: center;
   width: 30px;
   height: 30px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-weight: 900;
   font-size: 0.85rem;
 }
 
-.badge.win { background: rgba(62, 207, 110, 0.18); color: var(--win); }
-.badge.loss { background: rgba(239, 87, 87, 0.18); color: var(--loss); }
-.badge.upcoming { background: rgba(255, 211, 26, 0.15); color: var(--gold); font-size: 0.7rem; }
+.badge.win { background: rgba(63, 185, 80, 0.16); color: var(--win); }
+.badge.loss { background: rgba(248, 81, 73, 0.16); color: var(--loss); }
+.badge.upcoming { background: var(--accent-soft); color: var(--accent); font-size: 0.7rem; }
 
 /* --- Kombinace / dvojice --- */
 
@@ -309,14 +329,16 @@ td a, th a {
 }
 
 .combo-row {
+  --pct: 0%;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  background: var(--surface);
+  background: linear-gradient(to right, var(--accent-soft) var(--pct), transparent var(--pct)), var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 0.55rem 0.9rem;
+  padding: 0.7rem 1rem;
 }
 
 .combo-row .names {
@@ -324,20 +346,20 @@ td a, th a {
 }
 
 .combo-row .points {
-  color: var(--gold);
-  font-weight: 900;
-  font-size: 1.1rem;
+  color: var(--text);
+  font-weight: 800;
+  font-size: 1.05rem;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .combo-list.rank .combo-row {
-  position: relative;
-  padding-left: 2.4rem;
+  padding-left: 2.6rem;
 }
 
 .combo-list.rank .combo-row .rank-num {
   position: absolute;
-  left: 0.8rem;
+  left: 0.9rem;
   color: var(--text-muted);
   font-weight: 900;
 }
