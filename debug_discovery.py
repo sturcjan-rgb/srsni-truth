@@ -1,8 +1,7 @@
 """
-Dočasný diagnostický skript (kolo 9) - budoucí zápasy nemají <tr>
-rodiče. Podíváme se přímo na strukturu kolem odkazu (rodiče postupně
-nahoru), abychom zjistili, jak jsou budoucí zápasy v HTML rozpisu
-skutečně zabalené.
+Dočasný diagnostický skript (kolo 10) - moje předchozí hledání
+zachytilo odkazy z hlavičky stránky (globální nav), ne z tabulky
+rozpisu. Teď hledáme jen uvnitř <main>.
 """
 
 import re
@@ -22,32 +21,32 @@ r = session.get(url, timeout=20)
 r.raise_for_status()
 soup = BeautifulSoup(r.text, "html.parser")
 
+main = soup.find("main")
+print(f"main nalezeno: {main is not None}")
+if main is None:
+    exit()
+
 seen_ids = set()
 shown = 0
-for link in soup.find_all("a", href=True):
+for link in main.find_all("a", href=True):
     m = MATCH_LINK_RE_NEW.match(link["href"].strip())
     if not m or m.group(1) in seen_ids:
         continue
     seen_ids.add(m.group(1))
     shown += 1
-    if shown > 1:
-        break
+    if shown > 3:
+        continue
 
+    tr = link.find_parent("tr")
     print(f"--- nbl_id={m.group(1)} ---")
-    print("link tag:", str(link)[:200])
-    node = link
-    for level in range(6):
-        node = node.parent
-        if node is None:
-            print(f"úroveň {level+1}: None")
-            break
-        name = node.name
-        classes = node.get("class")
-        print(f"úroveň {level+1}: <{name} class={classes}>")
+    if tr is None:
+        print("(žádný <tr> rodič)")
+        print("link tag:", str(link)[:200])
+    else:
+        cells = tr.find_all(["td", "th"])
+        print(f"počet buněk: {len(cells)}")
+        for i, cell in enumerate(cells):
+            print(f"  [{i}] data-sort={cell.get('data-sort')!r} text={cell.get_text(' ', strip=True)!r}")
     print()
-    print("Kontext (5 úrovní nahoru, celé HTML, zkráceno na 3000 znaků):")
-    context = link
-    for _ in range(5):
-        if context.parent:
-            context = context.parent
-    print(str(context)[:3000])
+
+print(f"Celkem unikátních nbl_id uvnitř <main>: {len(seen_ids)}")
