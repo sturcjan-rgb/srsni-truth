@@ -143,7 +143,12 @@ def discover_matches(season: str) -> list[DiscoveredMatch]:
         "d_do": "",
     }
     html = _get(session, SCHEDULE_URL, params)
-    soup = BeautifulSoup(html, "html.parser")
+    # lxml (ne stdlib "html.parser") - u některých řádků rozpisu je
+    # HTML mírně poškozené (chybí <tr> obal) a "html.parser" v takovém
+    # případě celý řádek ztratí (žádný <tr> předek -> zápas se vůbec
+    # nenačte). lxml se s tím umí vyrovnat stejně shovívavě jako
+    # prohlížeč a řádek správně zrekonstruuje.
+    soup = BeautifulSoup(html, "lxml")
 
     # Hledáme jen uvnitř <main> - v hlavičce stránky je vlastní "další
     # zápas" widget s odkazem na /zapas/<id>, který by jinak matchnul
