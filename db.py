@@ -213,11 +213,7 @@ def get_latest_snapshot(conn: sqlite3.Connection, match_id: int) -> dict[str, An
     return json.loads(row["raw_json"]) if row else None
 
 
-def has_snapshot_today(conn: sqlite3.Connection, match_id: int) -> bool:
-    """Zjistí, jestli už dnes (UTC) existuje aspoň jeden snapshot zápasu."""
-    today = datetime.now(timezone.utc).date().isoformat()
-    row = conn.execute(
-        "SELECT 1 FROM snapshots WHERE match_id = ? AND fetched_at LIKE ? LIMIT 1",
-        (match_id, f"{today}%"),
-    ).fetchone()
+def has_any_snapshot(conn: sqlite3.Connection, match_id: int) -> bool:
+    """Zjistí, jestli pro zápas existuje aspoň jeden snapshot (bez ohledu na datum)."""
+    row = conn.execute("SELECT 1 FROM snapshots WHERE match_id = ? LIMIT 1", (match_id,)).fetchone()
     return row is not None

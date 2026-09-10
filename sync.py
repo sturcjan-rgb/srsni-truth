@@ -123,7 +123,10 @@ def sync_season(season: str | None = None, db_path=db.DB_PATH) -> dict:
         for match in db.list_matches(conn, season=season):
             if match.fiba_id is None:
                 continue
-            if match.status == "finished" and db.has_snapshot_today(conn, match.nbl_id):
+            if match.status == "finished" and db.has_any_snapshot(conn, match.nbl_id):
+                # Skončený zápas se už nezmění - jeden snapshot navždy stačí.
+                # (Dřív se kontrolovalo jen "má snapshot z dneška", takže se
+                # stejná data ukládala znovu každý den, donekonečna.)
                 continue
 
             try:
