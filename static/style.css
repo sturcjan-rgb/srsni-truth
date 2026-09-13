@@ -13,19 +13,25 @@
 }
 
 :root {
+  /* --- Barvy --- */
   --bg: #0a0a0b;
   --surface: #17171a;
   --surface-2: #1f1f23;
   --border: rgba(255, 255, 255, 0.09);
   --gold: #ffd31a;
   --gold-dim: #7a6600;
+  --gold-text: #14140f; /* text na žlutém podkladu (bento akcentní dlaždice) */
   --text: #f5f5f2;
   --text-muted: #9a9a9f;
   --win: #3ecf6e;
   --loss: #ef5757;
-  --radius: 10px;
+
+  /* --- Písmo --- */
   --font-display: "CoFo Peshka Black", "Barlow Condensed", sans-serif;
   --font-heading: "Barlow Condensed", sans-serif;
+  --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --radius: 10px;
 }
 
 * {
@@ -40,13 +46,13 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: "Barlow Condensed", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--font-heading);
   font-size: 17px;
   line-height: 1.45;
 }
 
 p, .prose {
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--font-body);
 }
 
 a {
@@ -361,5 +367,130 @@ footer.site-footer {
   padding: 1.5rem 0;
   color: var(--text-muted);
   font-size: 0.85rem;
-  font-family: system-ui, sans-serif;
+  font-family: var(--font-body);
+}
+
+/* --- Bento grid (úvodní stránka) ---
+   Asymetrická mřížka dlaždic: brand dlaždice + jedna akcentní (žlutá,
+   vysoká přes obě řady) + tři běžné statistiky. Vlastní komponenta jen
+   pro index.html - nenahrazuje .stat-tile/.tile-row používané jinde. */
+
+.bento-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-areas:
+    "brand  accent statb"
+    "stata  accent statc";
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+}
+
+.bento-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 150px;
+  padding: 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.bento-tile--brand { grid-area: brand; }
+.bento-tile--accent {
+  grid-area: accent;
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--gold-text);
+}
+.bento-tile--a { grid-area: stata; }
+.bento-tile--b { grid-area: statb; }
+.bento-tile--c { grid-area: statc; }
+
+.bento-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.bento-tile--accent .bento-kicker { color: var(--gold-text); opacity: 0.7; }
+
+.bento-kicker .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gold);
+  flex: none;
+}
+
+.bento-tile--accent .bento-kicker .dot { background: var(--gold-text); }
+
+.bento-title {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  line-height: 1.05;
+  margin: 0.6rem 0 0;
+}
+
+.bento-value {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(2.2rem, 6vw, 3.2rem);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.bento-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.bento-label {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.bento-tile--accent .bento-label { color: var(--gold-text); opacity: 0.8; }
+
+.bento-plus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--text-muted);
+}
+
+.bento-tile--accent .bento-plus {
+  border-color: rgba(20, 20, 15, 0.35);
+  color: var(--gold-text);
+}
+
+@media (max-width: 700px) {
+  .bento-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "brand"
+      "accent"
+      "stata"
+      "statb"
+      "statc";
+  }
 }

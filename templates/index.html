@@ -2,28 +2,41 @@
 {% block title %}Přehled{% endblock %}
 {% block content %}
 
-<h1>Sršni Photomate Písek</h1>
-<p class="prose" style="color:var(--text-muted); margin-top:-0.5rem;">
-  Sezóna {{ current_season.label }} · bilance {{ record.wins }}&ndash;{{ record.losses }}
-</p>
+<div class="bento-grid">
+  <a class="bento-tile bento-tile--brand" href="{{ root }}sezona/{{ current_season.slug }}.html">
+    <div class="bento-kicker"><span class="dot"></span> Sezóna {{ current_season.label }}</div>
+    <div class="bento-title">Sršni<br>Photomate<br>Písek</div>
+  </a>
 
-<div class="section">
-  <div class="tile-row">
-    <div class="stat-tile">
-      <div class="value">{{ record.wins }}&ndash;{{ record.losses }}</div>
-      <div class="label">Bilance</div>
+  <a class="bento-tile bento-tile--accent" href="{{ root }}sezona/{{ current_season.slug }}.html">
+    <div class="bento-value">{{ record.wins }}&ndash;{{ record.losses }}</div>
+    <div class="bento-bottom">
+      <div class="bento-label">Bilance</div>
+      <span class="bento-plus">+</span>
     </div>
-    <div class="stat-tile">
-      <div class="value">{{ "%.1f"|format(record.points_for_per_game) if record.points_for_per_game else "–" }}</div>
-      <div class="label">Body / zápas</div>
+  </a>
+
+  <div class="bento-tile bento-tile--b">
+    <div class="bento-value">{{ "%.1f"|format(record.points_for_per_game) if record.points_for_per_game else "–" }}</div>
+    <div class="bento-bottom">
+      <div class="bento-label">Body / zápas</div>
+      <span class="bento-plus">+</span>
     </div>
-    <div class="stat-tile">
-      <div class="value">{{ "%.1f"|format(record.points_against_per_game) if record.points_against_per_game else "–" }}</div>
-      <div class="label">Obdržené / zápas</div>
+  </div>
+
+  <div class="bento-tile bento-tile--a">
+    <div class="bento-value">{{ "%.1f"|format(record.points_against_per_game) if record.points_against_per_game else "–" }}</div>
+    <div class="bento-bottom">
+      <div class="bento-label">Obdržené / zápas</div>
+      <span class="bento-plus">+</span>
     </div>
-    <div class="stat-tile">
-      <div class="value">{{ record.points_for - record.points_against if record.games_played else "–" }}</div>
-      <div class="label">Skóre celkem</div>
+  </div>
+
+  <div class="bento-tile bento-tile--c">
+    <div class="bento-value">{{ record.points_for - record.points_against if record.games_played else "–" }}</div>
+    <div class="bento-bottom">
+      <div class="bento-label">Skóre celkem</div>
+      <span class="bento-plus">+</span>
     </div>
   </div>
 </div>
