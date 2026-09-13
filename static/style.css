@@ -1,8 +1,8 @@
-/* Design podle Sršni TV (tv.srsni.com): černá + zlatá, Barlow Condensed +
-   CoFo Peshka Black pro velké nadpisy (font stažený přímo ze Sršni TV -
-   stejná organizace provozuje oba weby). */
+/* Tmavě šedý + zlatý akcent, Space Grotesk pro celé písmo webu.
+   CoFo Peshka Black (self-hosted, viz @font-face níže) zůstává v repu
+   pro případný návrat k původnímu display fontu. */
 
-@import url("https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap");
 
 @font-face {
   font-family: "CoFo Peshka Black";
@@ -14,24 +14,27 @@
 
 :root {
   /* --- Barvy --- */
-  --bg: #0a0a0b;
-  --surface: #17171a;
-  --surface-2: #1f1f23;
-  --border: rgba(255, 255, 255, 0.09);
+  --bg: #333333;
+  --surface: #5e5e5e;
+  --surface-2: #828282;
+  --border: rgba(255, 211, 27, 0.10);
   --gold: #ffd31a;
   --gold-dim: #7a6600;
-  --gold-text: #14140f; /* text na žlutém podkladu (bento akcentní dlaždice) */
+  --gold-text: #333333; /* text na žlutém podkladu (bento akcentní dlaždice) */
   --text: #f5f5f2;
-  --text-muted: #9a9a9f;
+  --text-muted: #000000;
   --win: #3ecf6e;
   --loss: #ef5757;
 
   /* --- Písmo --- */
-  --font-display: "CoFo Peshka Black", "Barlow Condensed", sans-serif;
-  --font-heading: "Barlow Condensed", sans-serif;
-  --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-heading: "Space Grotesk", sans-serif;
+  --font-body: "Space Grotesk", sans-serif;
 
-  --radius: 10px;
+  --radius: 0px;
+  --border-width: 0px;
+  --border-width-accent: 1px;
+  --font-size-base: 17px;
 }
 
 * {
@@ -47,7 +50,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-heading);
-  font-size: 17px;
+  font-size: var(--font-size-base);
   line-height: 1.45;
 }
 
@@ -87,8 +90,8 @@ h3 { font-size: 1.25rem; }
 /* --- Hlavička --- */
 
 header.site-header {
-  border-bottom: 1px solid var(--border);
-  background: #000;
+  border-bottom: var(--border-width) solid var(--border);
+  background: var(--bg);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -147,7 +150,7 @@ main {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  border-bottom: 2px solid var(--gold);
+  border-bottom: var(--border-width-accent) solid var(--gold);
   padding-bottom: 0.35rem;
   margin-bottom: 1rem;
 }
@@ -167,7 +170,7 @@ main {
 
 .card {
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: var(--border-width) solid var(--border);
   border-radius: var(--radius);
   padding: 1.1rem 1.25rem;
 }
@@ -180,7 +183,7 @@ main {
 
 .stat-tile {
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: var(--border-width) solid var(--border);
   border-radius: var(--radius);
   padding: 1rem 1rem 0.85rem;
   text-align: center;
@@ -213,7 +216,7 @@ table {
 
 .table-wrap {
   overflow-x: auto;
-  border: 1px solid var(--border);
+  border: var(--border-width) solid var(--border);
   border-radius: var(--radius);
 }
 
@@ -221,7 +224,7 @@ th, td {
   padding: 0.5rem 0.65rem;
   text-align: right;
   white-space: nowrap;
-  border-bottom: 1px solid var(--border);
+  border-bottom: var(--border-width) solid var(--border);
   font-size: 0.95rem;
 }
 
@@ -266,7 +269,7 @@ td a, th a {
   align-items: center;
   gap: 0.75rem;
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: var(--border-width) solid var(--border);
   border-radius: var(--radius);
   padding: 0.6rem 0.9rem;
 }
@@ -320,7 +323,7 @@ td a, th a {
   justify-content: space-between;
   gap: 1rem;
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: var(--border-width) solid var(--border);
   border-radius: var(--radius);
   padding: 0.55rem 0.9rem;
 }
@@ -363,7 +366,7 @@ td a, th a {
 }
 
 footer.site-footer {
-  border-top: 1px solid var(--border);
+  border-top: var(--border-width) solid var(--border);
   padding: 1.5rem 0;
   color: var(--text-muted);
   font-size: 0.85rem;
@@ -393,7 +396,7 @@ footer.site-footer {
   min-height: 150px;
   padding: 1.5rem;
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: var(--border-width) solid var(--border);
   border-radius: var(--radius);
 }
 
@@ -472,7 +475,7 @@ footer.site-footer {
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  border: 1px solid var(--border);
+  border: var(--border-width) solid var(--border);
   font-size: 1rem;
   line-height: 1;
   color: var(--text-muted);
