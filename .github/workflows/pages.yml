@@ -17,6 +17,12 @@ on:
       - "lineups.py"
       - "stats.py"
       - "db.py"
+  # Commity z live.yml (probíhající zápas) se pushují z workflow bota, což
+  # samo o sobě netriggeruje jiné workflow - proto přegenerovat i podle
+  # vlastního rozvrhu ve večerním okně, ať se live snapshoty z srsni.db
+  # skutečně dostanou na web (ne jen jednou za 3 h přes sync.yml).
+  schedule:
+    - cron: "*/5 15-21 * * *"
   workflow_dispatch:
 
 permissions:

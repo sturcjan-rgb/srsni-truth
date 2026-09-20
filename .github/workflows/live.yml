@@ -1,0 +1,67 @@
+name: srsni-data live watch
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Jen ve večerním okně, kdy se reálně hrají zápasy (Evropa/Praha
+    # cca 16-23 podle DST → UTC 15-21). Mimo tohle okno by to bylo
+    # zbytečné (live.py sám navíc rychle skončí, pokud dnes žádný
+    # neodehraný zápas Sršňů v DB není).
+    - cron: "*/10 15-21 * * *"
+
+concurrency:
+  # Jen jeden běh najednou - další spuštění počká, ne poběží současně
+  # (živý zápas se sleduje jen jednou, ne vícekrát paralelně).
+  group: srsni-live-watch
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    # live.py má vlastní bezpečnostní strop (SAFETY_CAP_HOURS=3), tohle
+    # je jen krajní pojistka pro celý job.
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Nainstalovat uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Nainstalovat závislosti
+        run: uv sync
+
+      - name: Sledovat dnešní zápas a průběžně commitovat snapshoty
+        run: |
+          git config user.name "srsni-bot"
+          git config user.email "bot@srsni.local"
+
+          commit_and_push() {
+            git add -f srsni.db
+            git diff --cached --quiet && return 0
+            git commit -m "chore: live sync snapshot" --quiet
+            if git push --quiet; then
+              return 0
+            fi
+            echo "push selhal, zkouším rebase na origin/main a znovu"
+            git fetch origin main --quiet
+            git rebase origin/main --quiet && git push --quiet
+          }
+
+          # live.py sám najde dnešní neodehraný zápas (nebo hned skončí,
+          # pokud žádný není) a čeká/pollí až do konce zápasu.
+          uv run python3 live.py &
+          LIVE_PID=$!
+
+          while kill -0 "$LIVE_PID" 2>/dev/null; do
+            sleep 75
+            commit_and_push || echo "commit/push se teď nepovedl, zkusím to za 75s znovu"
+          done
+          wait "$LIVE_PID"
+
+          # Finální snímek po skončení smyčky.
+          commit_and_push || echo "finální push se nepovedl"
