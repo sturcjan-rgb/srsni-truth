@@ -18,6 +18,7 @@ Spuštění: uv run python3 build_site.py
 
 from __future__ import annotations
 
+import json
 import shutil
 from datetime import datetime
 from pathlib import Path
@@ -206,6 +207,24 @@ def build_match_page(env: Environment, conn, match: db.Match, current_season_ctx
     render(env, "match.html", ctx, OUTPUT_DIR / "zapasy" / f"{match.nbl_id}.html")
 
 
+def export_match_json(conn, match: db.Match) -> None:
+    """Zveřejní poslední snapshot zápasu jako syrový FIBA data.json pod
+    matches/<fiba_id>.json. FIBA LiveStats sám o sobě starší zápasy
+    přestává servirovat (a veřejné CORS proxy jsou nespolehlivé), takže
+    tohle je jediný trvalý zdroj dat pro klientské appky mimo tenhle repo
+    (viz srsni-data live analytics app) - srsni-data i srsni-truth běží
+    pod stejnou doménou sturcjan-rgb.github.io, takže žádný CORS problém.
+    """
+    if not match.fiba_id:
+        return
+    raw = db.get_latest_snapshot(conn, match.nbl_id)
+    if raw is None:
+        return
+    out_path = OUTPUT_DIR / "matches" / f"{match.fiba_id}.json"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(raw, ensure_ascii=False), encoding="utf-8")
+
+
 def build_player_pages(env: Environment, conn, current_season_ctx: dict, seasons: list[str], seasons_ctx: list[dict]) -> None:
     career_players = aggregate.player_stats(conn, season=None)
     slug_by_name = {p.name: p.player_id for p in career_players}
@@ -301,6 +320,7 @@ def main() -> None:
 
         for match in db.list_matches(conn):
             build_match_page(env, conn, match, current_season_ctx, seasons_ctx)
+            export_match_json(conn, match)
 
         build_player_pages(env, conn, current_season_ctx, seasons, seasons_ctx)
 
