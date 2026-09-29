@@ -141,6 +141,7 @@ def sync_season(season: str | None = None, db_path=db.DB_PATH) -> dict:
             db.mark_synced(conn, match.nbl_id)
             summary["snapshots_saved"] += 1
 
+    db.compact(db_path)
     return summary
 
 

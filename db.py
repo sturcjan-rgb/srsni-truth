@@ -2,8 +2,8 @@
 Lokální SQLite databáze srsni-data.
 
 Celý systém stojí na jednom souboru srsni.db (viz DB_PATH) - do něj sync.py
-a live.py ukládají data, mcp_server.py z něj čte. Soubor se necommituje
-do gitu (je v .gitignore), protože jde o generovaná/proměnlivá data.
+a live.py ukládají data, mcp_server.py z něj čte. Soubor je v .gitignore,
+ale workflowy sync.yml/live.yml ho commitují přes `git add -f`.
 
 Dvě tabulky:
 
@@ -11,9 +11,12 @@ Dvě tabulky:
   Drží i fiba_id (jakmile ho známe), stav zápasu a kdy byl naposledy
   synchronizovaný.
 
-- snapshots: historie stažených dat.json v čase. NIKDY se nepřepisují,
-  jen přidávají (append-only) - u živého zápasu tak postupně vzniká
-  časová řada, ze které jde třeba dopočítat průběh utkání.
+- snapshots: poslední stažený data.json ke každému zápasu. Dřív se
+  snapshoty jen přidávaly (append-only), jenže živý zápas jich za večer
+  nasbíral stovky (~80 MB) a srsni.db přerostla 100MB limit GitHubu -
+  push bota se pak odmítal a nová data se nedostala na web. Všechno
+  (portál, agregace, MCP) stejně čte jen poslední snapshot a play-by-play
+  je v něm celý, takže add_snapshot starší snapshoty zápasu maže.
 """
 
 from __future__ import annotations
@@ -193,7 +196,7 @@ def add_snapshot(
     clock: str | None = None,
     period: int | None = None,
 ) -> int:
-    """Přidá nový snapshot (nikdy nepřepisuje starší). Vrací id nového řádku."""
+    """Uloží nový snapshot a smaže starší snapshoty téhož zápasu. Vrací id nového řádku."""
     cursor = conn.execute(
         """
         INSERT INTO snapshots (match_id, fetched_at, clock, period, raw_json)
@@ -201,7 +204,24 @@ def add_snapshot(
         """,
         (match_id, now_iso(), clock, period, json.dumps(raw_json, ensure_ascii=False)),
     )
+    conn.execute("DELETE FROM snapshots WHERE match_id = ? AND id < ?", (match_id, cursor.lastrowid))
     return cursor.lastrowid
+
+
+def compact(db_path: Path | None = None) -> None:
+    """
+    Nechá u každého zápasu jen poslední snapshot a zmenší soubor (VACUUM),
+    ať srsni.db zůstane hluboko pod 100MB limitem GitHubu.
+    """
+    with connect(db_path) as conn:
+        conn.execute(
+            "DELETE FROM snapshots WHERE id NOT IN (SELECT MAX(id) FROM snapshots GROUP BY match_id)"
+        )
+    conn = sqlite3.connect(db_path or DB_PATH)
+    try:
+        conn.execute("VACUUM")
+    finally:
+        conn.close()
 
 
 def get_latest_snapshot(conn: sqlite3.Connection, match_id: int) -> dict[str, Any] | None:
