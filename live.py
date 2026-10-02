@@ -144,8 +144,8 @@ if __name__ == "__main__":
         with db.connect() as conn:
             todays_match = find_todays_match(conn)
         if todays_match is None:
-            print("Dnes nemají Sršni podle databáze žádný neodehraný zápas. Spusť nejdřív sync.py.")
-            sys.exit(1)
+            print("Dnes nemají Sršni podle databáze žádný neodehraný zápas - není co sledovat.")
+            sys.exit(0)
         target_nbl_id = todays_match.nbl_id
 
     watch_match(target_nbl_id)
