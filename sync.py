@@ -19,8 +19,11 @@ Postup pro danou sezónu:
 
 from __future__ import annotations
 
+import json
+import sys
 import time
 from datetime import date, datetime, timezone
+from pathlib import Path
 
 import requests
 
@@ -32,6 +35,18 @@ from discovery import USER_AGENT, discover_matches
 FIBA_DATA_URL_TEMPLATE = "https://fibalivestats.dcd.shared.geniussports.com/data/{fiba_id}/data.json"
 
 REQUEST_DELAY_SECONDS = 0.8
+
+# Ručně zadaná FIBA ID ({"<nbl_id>": <fiba_id>}) - pojistka pro případ, kdy
+# nbl.basketball FIBA odkaz neukáže nebo je nedostupný (od 11/2026 vrací
+# runnerům GitHub Actions HTTP 403).
+FIBA_OVERRIDES_PATH = Path(__file__).with_name("fiba_overrides.json")
+
+
+def load_fiba_overrides(path: Path = FIBA_OVERRIDES_PATH) -> dict[int, int]:
+    if not path.exists():
+        return {}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return {int(k): int(v) for k, v in data.items() if v}
 
 
 def current_season_guess(today: date | None = None) -> str:
@@ -89,7 +104,13 @@ def sync_season(season: str | None = None, db_path=db.DB_PATH) -> dict:
     summary = {"discovered": 0, "resolved": 0, "snapshots_saved": 0}
 
     with db.connect(db_path) as conn:
-        discovered = discover_matches(season)
+        try:
+            discovered = discover_matches(season)
+        except requests.RequestException as exc:
+            # Nedostupný rozpis nesmí shodit celý sync - zápasy už v DB jsou
+            # a FIBA data (krok 3) se dají stáhnout i bez nbl.basketball.
+            print(f"WARN rozpis se nepodařilo stáhnout ({exc}) - pokračuji se zápasy z DB", file=sys.stderr)
+            discovered = []
         summary["discovered"] = len(discovered)
 
         for item in discovered:
@@ -102,6 +123,12 @@ def sync_season(season: str | None = None, db_path=db.DB_PATH) -> dict:
                 away_team=item.away_team,
                 fiba_id=item.fiba_id,
             )
+
+        for nbl_id, fiba_id in load_fiba_overrides().items():
+            match = db.get_match(conn, nbl_id)
+            if match is not None and match.season == season and match.fiba_id != fiba_id:
+                db.upsert_match(conn, nbl_id, fiba_id=fiba_id)
+                summary["resolved"] += 1
 
         matches = db.list_matches(conn, season=season)
 
