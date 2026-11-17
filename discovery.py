@@ -51,7 +51,7 @@ REQUEST_DELAY_SECONDS = 0.8
 MATCH_LINK_RE = re.compile(r"^/zapas/(\d+)(?:#.*)?$")
 
 # Přímý odkaz na FIBA LiveStats webcast, pokud ho tabulka už obsahuje.
-FIBA_WEBCAST_RE = re.compile(r"https://www\.fibalivestats\.com/webcast/[^/\s\"']+/(\d+)/?")
+FIBA_WEBCAST_RE = re.compile(r"https://(?:www\.)?fibalivestats(?:\.dcd\.shared\.geniussports)?\.com/(?:webcast|u)/[^/\s\"']+/(\d+)/?")
 
 # Formát atributu data-sort na buňce s datem: "2025-10-04-18-00".
 DATE_SORT_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})-(\d{2})-(\d{2})$")

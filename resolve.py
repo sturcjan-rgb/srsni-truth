@@ -26,7 +26,7 @@ import requests
 from discovery import USER_AGENT
 
 FIBA_WEBCAST_RE = re.compile(
-    r"https://www\.fibalivestats\.com/webcast/[^/\s\"']+/(\d+)/?"
+    r"https://(?:www\.)?fibalivestats(?:\.dcd\.shared\.geniussports)?\.com/(?:webcast|u)/[^/\s\"']+/(\d+)/?"
 )
 
 REQUEST_DELAY_SECONDS = 0.8
