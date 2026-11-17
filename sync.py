@@ -42,6 +42,24 @@ REQUEST_DELAY_SECONDS = 0.8
 FIBA_OVERRIDES_PATH = Path(__file__).with_name("fiba_overrides.json")
 
 
+# Ligový rozpis z projektu nbl2627 (GitHub Pages) - FIBA ID dohledává i bez
+# nbl.basketball (podle sousedních ID u FIBA), takže slouží jako záložní zdroj.
+NBL2627_SCHEDULE_URL = "https://sturcjan-rgb.github.io/nbl2627/data/{key}/schedule.json"
+
+
+def load_nbl2627_fiba_ids(season: str, session: requests.Session) -> dict[int, int]:
+    """nbl_id -> fiba_id z rozpisu nbl2627 ("2026/27" -> data/2026-27/)."""
+    key = season.replace("/", "-")
+    try:
+        response = session.get(NBL2627_SCHEDULE_URL.format(key=key), timeout=15)
+        response.raise_for_status()
+        fixtures = response.json().get("fixtures", [])
+    except (requests.RequestException, ValueError) as exc:
+        print(f"WARN rozpis nbl2627 nedostupný ({exc})", file=sys.stderr)
+        return {}
+    return {int(f["nblId"]): int(f["fibaId"]) for f in fixtures if f.get("nblId") and f.get("fibaId")}
+
+
 def load_fiba_overrides(path: Path = FIBA_OVERRIDES_PATH) -> dict[int, int]:
     if not path.exists():
         return {}
@@ -124,6 +142,12 @@ def sync_season(season: str | None = None, db_path=db.DB_PATH) -> dict:
                 fiba_id=item.fiba_id,
             )
 
+        # Chybějící FIBA ID z rozpisu nbl2627, ruční přepisy mají přednost.
+        for nbl_id, fiba_id in load_nbl2627_fiba_ids(season, session).items():
+            match = db.get_match(conn, nbl_id)
+            if match is not None and match.season == season and match.fiba_id is None:
+                db.upsert_match(conn, nbl_id, fiba_id=fiba_id)
+                summary["resolved"] += 1
         for nbl_id, fiba_id in load_fiba_overrides().items():
             match = db.get_match(conn, nbl_id)
             if match is not None and match.season == season and match.fiba_id != fiba_id:
